@@ -84,7 +84,10 @@ export default function ContentHeader({
       <div className="px-8 pb-4">
         <div className="flex items-center gap-4">
           <button 
-            onClick={onPlay}
+            onClick={() => {
+              console.log('🔥 Play button clicked in ContentHeader', { deviceId, hasOnPlay: !!onPlay, canPlay });
+              if (onPlay) onPlay();
+            }}
             disabled={!canPlay}
             className={`font-bold py-4 px-8 rounded-full flex items-center gap-2 transition-all duration-200 hover:scale-105 ${
               canPlay 
@@ -92,8 +95,8 @@ export default function ContentHeader({
                 : 'bg-neutral-600 text-neutral-400 cursor-not-allowed'
             }`}
           >
-            <Play fill="black" size={24} />
-            {canPlay ? 'Воспроизвести' : 'Подключение...'}
+            <Play fill={canPlay ? "black" : "currentColor"} size={24} />
+            {canPlay ? 'Воспроизвести' : (deviceId ? 'Загрузка...' : 'Подключение...')}
           </button>
           
           <button className="text-neutral-300 hover:text-white transition-colors">

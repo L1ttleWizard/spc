@@ -1,149 +1,200 @@
-import { getSpotifyServerApi } from '@/lib/spotify-server';
-import { LibraryItem, LibrarySortType, LibraryFilterType } from '@/types';
+/**
+ * Spotify data fetching and caching utilities
+ */
 
-// Кэш для хранения данных
-const cache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 минут
+import { executeSpotifyApiCall, getSpotifyServerApi } from '@/lib/spotify-server';
+import { LibraryItem, LibrarySortType, LibraryFilterType, CacheEntry } from '@/types';
+import { CACHE_CONFIG, DEFAULT_IMAGES } from '@/constants';
+import { handleError } from '@/lib/error-handler';
+import { getImageUrl, getArtistNames } from '@/lib/utils';
 
-// Функция для получения кэшированных данных
+// In-memory cache with proper typing
+const cache = new Map<string, CacheEntry<unknown>>();
+
+/**
+ * Retrieves cached data if still valid
+ */
 function getCachedData<T>(key: string): T | null {
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+  const cached = cache.get(key) as CacheEntry<T> | undefined;
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_CONFIG.DURATION) {
     return cached.data;
   }
+  
+  // Clean up expired cache entry
+  if (cached) {
+    cache.delete(key);
+  }
+  
   return null;
 }
 
-// Функция для сохранения данных в кэш
+/**
+ * Stores data in cache with timestamp
+ */
 function setCachedData<T>(key: string, data: T): void {
   cache.set(key, {
     data,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 }
 
-function isFulfilled<T>(p: PromiseSettledResult<T>): p is PromiseFulfilledResult<T> {
-  return p.status === 'fulfilled';
+/**
+ * Clears all cache entries
+ */
+export function clearCache(): void {
+  cache.clear();
 }
 
+/**
+ * Clears cache entries older than specified duration
+ */
+export function cleanExpiredCache(): void {
+  const now = Date.now();
+  for (const [key, entry] of cache.entries()) {
+    if (now - entry.timestamp >= CACHE_CONFIG.DURATION) {
+      cache.delete(key);
+    }
+  }
+}
+
+/**
+ * Fetches user's library data (playlists and albums)
+ */
 export async function getLibraryData(
   sort?: LibrarySortType,
   filter?: LibraryFilterType
 ): Promise<LibraryItem[] | null> {
-  const cacheKey = `library_${sort}_${filter}`;
+  const cacheKey = `library_${sort || 'recents'}_${filter || 'all'}`;
   const cached = getCachedData<LibraryItem[]>(cacheKey);
+  
   if (cached) {
     return cached;
   }
 
   try {
-    const spotifyApi = await getSpotifyServerApi();
-    
-    // Ограничиваем количество запросов для ускорения
-    const [
-      playlistsResult,
-      albumsResult,
-      recentlyPlayedResult,
-    ] = await Promise.allSettled([
-      spotifyApi.getUserPlaylists({ limit: 30 }),
-      spotifyApi.getMySavedAlbums({ limit: 30 }),
-      spotifyApi.getMyRecentlyPlayedTracks({ limit: 20 })
-    ]);
+    return await executeSpotifyApiCall(async (api) => {
+      // Fetch data in parallel with error handling
+      const [
+        playlistsResult,
+        albumsResult,
+        recentlyPlayedResult,
+      ] = await Promise.allSettled([
+        api.getUserPlaylists({ limit: CACHE_CONFIG.DEFAULT_LIMIT }),
+        api.getMySavedAlbums({ limit: CACHE_CONFIG.DEFAULT_LIMIT }),
+        api.getMyRecentlyPlayedTracks({ limit: 20 })
+      ]);
 
-    // Получаем только первые 100 лайкнутых треков для ускорения
-    const likedTracksResult = await spotifyApi.getMySavedTracks({ limit: 50 });
-    const allLikedTracks = likedTracksResult.body.items.slice(0, 100);
+      // Get liked tracks for Liked Songs playlist
+      const likedTracksResult = await api.getMySavedTracks({ limit: 50 });
+      const allLikedTracks = likedTracksResult.body.items.slice(0, 100);
 
-    const lastPlayedMap = new Map<string, Date>();
-    const likedSongsTrackIds = new Set<string>();
+      const lastPlayedMap = new Map<string, Date>();
+      const likedSongsTrackIds = new Set<string>();
 
-    // Добавляем ID всех лайкнутых треков
-    allLikedTracks.forEach(item => likedSongsTrackIds.add(item.track.id));
+      // Add all liked track IDs
+      allLikedTracks.forEach(item => likedSongsTrackIds.add(item.track.id));
 
-    if (isFulfilled(recentlyPlayedResult)) {
-      recentlyPlayedResult.value.body.items.forEach(item => {
-        if (likedSongsTrackIds.has(item.track.id)) {
+      // Helper function to check if result is fulfilled
+      const isFulfilled = <T>(result: PromiseSettledResult<T>): result is PromiseFulfilledResult<T> => {
+        return result.status === 'fulfilled';
+      };
+
+      if (isFulfilled(recentlyPlayedResult)) {
+        recentlyPlayedResult.value.body.items.forEach(item => {
+          if (likedSongsTrackIds.has(item.track.id)) {
             const existingDate = lastPlayedMap.get('liked-songs');
             const newDate = new Date(item.played_at);
             if (!existingDate || newDate > existingDate) {
-                lastPlayedMap.set('liked-songs', newDate);
+              lastPlayedMap.set('liked-songs', newDate);
             }
-        }
-        if (item.context?.uri) {
-          const contextId = item.context.uri.split(':').pop();
-          if (contextId && !lastPlayedMap.has(contextId)) {
-            lastPlayedMap.set(contextId, new Date(item.played_at));
           }
-        }
-      });
-    }
+          if (item.context?.uri) {
+            const contextId = item.context.uri.split(':').pop();
+            if (contextId && !lastPlayedMap.has(contextId)) {
+              lastPlayedMap.set(contextId, new Date(item.played_at));
+            }
+          }
+        });
+      }
 
-    let libraryItems: LibraryItem[] = [];
+      let libraryItems: LibraryItem[] = [];
 
-    // Добавляем Liked Songs
+      // Add Liked Songs
       libraryItems.push({
-        id: 'liked-songs', type: 'playlist', name: 'Liked Songs',
-        imageUrl: 'https://misc.scdn.co/liked-songs/liked-songs-300.png',
-      subtitle: `Playlist • ${allLikedTracks.length} songs`,
+        id: 'liked-songs',
+        type: 'playlist',
+        name: 'Liked Songs',
+        imageUrl: DEFAULT_IMAGES.LIKED_SONGS,
+        subtitle: `Playlist • ${allLikedTracks.length} songs`,
         creator: 'You',
         dateAdded: null,
         lastPlayed: lastPlayedMap.get('liked-songs') || null,
       });
 
-    if (isFulfilled(playlistsResult)) {
-      playlistsResult.value.body.items.forEach(p => {
-        libraryItems.push({
-          id: p.id, type: 'playlist', name: p.name,
-          imageUrl: p.images?.[0]?.url,
-          subtitle: `Playlist • ${p.owner.display_name || 'Unknown'}`,
-          creator: p.owner.display_name || 'Unknown',
-          dateAdded: null,
-          lastPlayed: lastPlayedMap.get(p.id) || null
+      if (isFulfilled(playlistsResult)) {
+        playlistsResult.value.body.items.forEach(p => {
+          libraryItems.push({
+            id: p.id,
+            type: 'playlist',
+            name: p.name,
+            imageUrl: getImageUrl(p.images),
+            subtitle: `Playlist • ${p.owner.display_name || 'Unknown'}`,
+            creator: p.owner.display_name || 'Unknown',
+            dateAdded: null,
+            lastPlayed: lastPlayedMap.get(p.id) || null
+          });
         });
-      });
-    }
+      }
 
-    if (isFulfilled(albumsResult)) {
-      albumsResult.value.body.items.forEach(a => {
-        libraryItems.push({
-          id: a.album.id, type: 'album', name: a.album.name,
-          imageUrl: a.album.images?.[0]?.url,
-          subtitle: `Album • ${a.album.artists.map(art => art.name).join(', ')}`,
-          creator: a.album.artists[0].name,
-          dateAdded: new Date(a.added_at),
-          lastPlayed: lastPlayedMap.get(a.album.id) || null
+      if (isFulfilled(albumsResult)) {
+        albumsResult.value.body.items.forEach(a => {
+          libraryItems.push({
+            id: a.album.id,
+            type: 'album',
+            name: a.album.name,
+            imageUrl: getImageUrl(a.album.images),
+            subtitle: `Album • ${getArtistNames(a.album.artists)}`,
+            creator: a.album.artists[0]?.name || 'Unknown',
+            dateAdded: new Date(a.added_at),
+            lastPlayed: lastPlayedMap.get(a.album.id) || null
+          });
         });
-      });
-    }
+      }
 
-    if (filter) {
-      libraryItems = libraryItems.filter(item => item.type === filter);
-    }
-    
-    const sortType = sort || 'recents';
-    switch (sortType) {
-      case 'alpha':
-        libraryItems.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case 'added':
-        libraryItems.sort((a, b) => (b.dateAdded?.getTime() || 0) - (a.dateAdded?.getTime() || 0));
-        break;
-      case 'creator':
-        libraryItems.sort((a, b) => a.creator.localeCompare(b.creator));
-        break;
-      case 'recents':
-      default:
-        libraryItems.sort((a, b) => (b.lastPlayed?.getTime() || 0) - (a.lastPlayed?.getTime() || 0));
-        break;
-    }
+      if (filter) {
+        libraryItems = libraryItems.filter(item => item.type === filter);
+      }
+      
+      const sortType = sort || 'recents';
+      switch (sortType) {
+        case 'alpha':
+          libraryItems.sort((a, b) => a.name.localeCompare(b.name));
+          break;
+        case 'added':
+          libraryItems.sort((a, b) => (b.dateAdded?.getTime() || 0) - (a.dateAdded?.getTime() || 0));
+          break;
+        case 'creator':
+          libraryItems.sort((a, b) => a.creator.localeCompare(b.creator));
+          break;
+        case 'recents':
+        default:
+          libraryItems.sort((a, b) => (b.lastPlayed?.getTime() || 0) - (a.lastPlayed?.getTime() || 0));
+          break;
+      }
 
-    setCachedData(cacheKey, libraryItems);
-    return libraryItems;
+      setCachedData(cacheKey, libraryItems);
+      return libraryItems;
+    }, { sort, filter });
 
-  } catch (e) {
-    console.error("Ошибка в getLibraryData:", e);
-    return null;
+  } catch (error) {
+    return handleError(error, { sort, filter }).data as LibraryItem[] | null;
   }
+};
+
+// Helper function to check if Promise.allSettled result is fulfilled
+function isFulfilled<T>(result: PromiseSettledResult<T>): result is PromiseFulfilledResult<T> {
+  return result.status === 'fulfilled';
 }
 
 export async function getMainContentData() {

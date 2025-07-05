@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react';
 import { Home, Search } from 'lucide-react';
+import Link from 'next/link';
 
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -12,9 +13,9 @@ export default function Header() {
     <header className="sticky top-0 z-10 p-4 flex items-center justify-center bg-neutral-900/70 backdrop-blur-sm">
       
       <div className="flex items-center gap-4">
-        <a href="#" className="text-white hover:text-green-500 transition-colors">
+        <Link href="/" className="text-white hover:text-green-500 transition-colors">
           <Home size={28} />
-        </a>
+        </Link>
         <div className="relative w-full max-w-xs">
           <Search 
             className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" 

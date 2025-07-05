@@ -4,7 +4,7 @@ import React from 'react';
 import { Play } from 'lucide-react';
 
 interface PlayButtonProps {
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
@@ -24,7 +24,12 @@ export default function PlayButton({ onClick, size = 'md', className = '' }: Pla
 
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        console.log('🎵 PlayButton clicked', { size, hasOnClick: !!onClick });
+        if (onClick) {
+          onClick(e);
+        }
+      }}
       className={`bg-white text-black rounded-full hover:scale-110 transition-transform ${sizeClasses[size]} ${className}`}
       aria-label="Воспроизвести"
     >

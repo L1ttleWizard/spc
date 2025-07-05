@@ -42,16 +42,14 @@ export default function AppLayout({
       {/* Основной контент */}
       <div className="flex flex-1 overflow-hidden">
         {/* Сайдбар */}
-        <div className="w-64 flex-shrink-0">
-          <Sidebar 
-            items={sidebarItems}
-            currentSort={currentSort}
-            currentFilter={currentFilter}
-          />
-        </div>
+        <Sidebar 
+          items={sidebarItems}
+          currentSort={currentSort}
+          currentFilter={currentFilter}
+        />
         
         {/* Основная область */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden md:ml-72">
           {/* Хедер */}
           <Header />
           

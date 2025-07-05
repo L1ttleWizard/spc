@@ -52,7 +52,7 @@ export default function Sidebar({ items, currentSort, currentFilter }: SidebarPr
   const activeSortLabel = sortOptions.find(opt => opt.value === (currentSort || 'recents'))?.label;
   
   return (
-    <aside className="text-gray-400 bg-black h-screen  w-72 p-2 hidden md:block">
+    <aside className="text-gray-400 bg-black fixed left-0 top-0 z-20 h-screen w-72 p-2 hidden md:block">
       <div className="bg-neutral-900 rounded-lg p-4 space-y-4">
         <Link href="/" className="flex items-center gap-4 text-white font-bold">
           <Home size={24} />

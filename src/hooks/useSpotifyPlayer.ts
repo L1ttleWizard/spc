@@ -108,11 +108,18 @@ export function useSpotifyPlayer() {
     console.log('playTrack called:', { trackUri, deviceId, hasAccessToken: !!accessToken });
     
     if (!deviceId || !accessToken) {
-      console.warn('Cannot play track: missing deviceId or accessToken');
+      console.warn('Cannot play track: missing deviceId or accessToken', { deviceId: !!deviceId, accessToken: !!accessToken });
+      return;
+    }
+
+    // Validate track URI format
+    if (!trackUri || !trackUri.startsWith('spotify:track:')) {
+      console.error('Invalid track URI format:', trackUri);
       return;
     }
 
     try {
+      console.log('Sending play request for track:', trackUri);
       const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         body: JSON.stringify({ uris: [trackUri] }),
@@ -122,14 +129,23 @@ export function useSpotifyPlayer() {
         },
       });
 
-      if (response.ok) {
-        console.log('Started playing track:', trackUri);
+      if (response.status === 204) {
+        console.log('✅ Successfully started playing track:', trackUri);
+      } else if (response.status === 404) {
+        console.error('❌ Device not found. Try refreshing or selecting another device.');
+      } else if (response.status === 403) {
+        console.error('❌ Spotify Premium required for playback control.');
       } else {
         const errorText = await response.text();
-        console.error('Failed to play track:', response.status, response.statusText, errorText);
+        console.error('❌ Failed to play track:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+          trackUri
+        });
       }
     } catch (error) {
-      console.error('Error playing track:', error);
+      console.error('❌ Network error playing track:', error);
     }
   }, [deviceId, accessToken]);
 
@@ -137,31 +153,51 @@ export function useSpotifyPlayer() {
     console.log('playPlaylist called:', { playlistUri, trackIndex, deviceId, hasAccessToken: !!accessToken });
     
     if (!deviceId || !accessToken) {
-      console.warn('Cannot play playlist: missing deviceId or accessToken');
+      console.warn('Cannot play playlist: missing deviceId or accessToken', { deviceId: !!deviceId, accessToken: !!accessToken });
+      return;
+    }
+
+    // Validate playlist URI format
+    if (!playlistUri || !playlistUri.startsWith('spotify:')) {
+      console.error('Invalid playlist URI format:', playlistUri);
       return;
     }
 
     try {
+      console.log('Sending play request for playlist:', playlistUri, 'at position:', trackIndex);
+      const requestBody = {
+        context_uri: playlistUri,
+        offset: { position: trackIndex }
+      };
+      
       const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
-        body: JSON.stringify({ 
-          context_uri: playlistUri,
-          offset: { position: trackIndex }
-        }),
+        body: JSON.stringify(requestBody),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`,
         },
       });
 
-      if (response.ok) {
-        console.log('Started playing playlist:', playlistUri);
+      if (response.status === 204) {
+        console.log('✅ Successfully started playing playlist:', playlistUri, 'at position:', trackIndex);
+      } else if (response.status === 404) {
+        console.error('❌ Device not found. Try refreshing or selecting another device.');
+      } else if (response.status === 403) {
+        console.error('❌ Spotify Premium required for playback control.');
       } else {
         const errorText = await response.text();
-        console.error('Failed to play playlist:', response.status, response.statusText, errorText);
+        console.error('❌ Failed to play playlist:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+          playlistUri,
+          trackIndex,
+          requestBody
+        });
       }
     } catch (error) {
-      console.error('Error playing playlist:', error);
+      console.error('❌ Network error playing playlist:', error);
     }
   }, [deviceId, accessToken]);
 
@@ -205,7 +241,7 @@ export function useSpotifyPlayer() {
         player.disconnect();
       }
     };
-  }, [accessToken, initializePlayer]);
+  }, [accessToken]);
 
   return {
     player,

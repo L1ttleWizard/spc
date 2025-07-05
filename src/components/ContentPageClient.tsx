@@ -43,18 +43,39 @@ export default function ContentPageClient({
   const { playTrack, playPlaylist, deviceId } = useSpotifyPlayerContext();
 
   const handlePlayAll = () => {
-    console.log('handlePlayAll called:', { type, name, tracksLength: tracks.length, playlistUri, deviceId });
+    console.log('🎵 handlePlayAll called:', { 
+      type, 
+      name, 
+      tracksLength: tracks.length, 
+      playlistUri, 
+      deviceId,
+      firstTrack: tracks[0] ? {
+        id: tracks[0].id,
+        name: tracks[0].name,
+        uri: tracks[0].uri
+      } : null
+    });
     
-    // Для "Мои любимые" воспроизводим первый трек, для остальных плейлистов - весь плейлист
+    // Check if we have a device
+    if (!deviceId) {
+      console.error('❌ No Spotify device available. Make sure the Web Player is loaded.');
+      return;
+    }
+    
+    // For playlists (except Liked Songs), play the whole playlist
     if (type === 'playlist' && playlistUri && name !== 'Liked Songs') {
-      console.log('Playing playlist:', playlistUri);
+      console.log('🎵 Playing playlist:', playlistUri);
       playPlaylist(playlistUri);
-    } else if (tracks.length > 0 && tracks[0].uri) {
-      // Для альбомов и "Мои любимые" играем первый трек
-      console.log('Playing first track:', tracks[0].uri);
+    } else if (tracks.length > 0 && tracks[0]?.uri) {
+      // For albums and Liked Songs, play the first track
+      console.log('🎵 Playing first track:', tracks[0].uri);
       playTrack(tracks[0].uri);
     } else {
-      console.warn('No valid tracks to play:', { tracksLength: tracks.length, firstTrackUri: tracks[0]?.uri });
+      console.warn('⚠️ No valid tracks to play:', { 
+        tracksLength: tracks.length, 
+        firstTrackUri: tracks[0]?.uri,
+        sampleTracks: tracks.slice(0, 3).map(t => ({ id: t.id, name: t.name, uri: t.uri }))
+      });
     }
   };
 

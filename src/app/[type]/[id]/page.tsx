@@ -33,26 +33,38 @@ export default async function ContentPage({ params }: ContentPageProps) {
   
   if (!content) return notFound();
 
-  // Фильтруем null треки и преобразуем в нужный формат
+  // Filter and transform tracks to ensure proper format
   let validTracks: any[] = [];
   
   if (type === 'playlist') {
-    // Для плейлистов треки находятся в tracks.items[].track
+    // For playlists, tracks are in tracks.items[].track
     validTracks = content.tracks?.items
       ?.filter((item: any) => {
-        // Проверяем, что трек существует и имеет необходимые поля
         if (!item || !item.track) return false;
         const track = item.track;
-        return track.id && track.name && track.uri && track.artists && track.album;
+        return track.id && track.name && track.artists;
       })
-      ?.map((item: any) => item.track) || [];
+      ?.map((item: any) => {
+        const track = item.track;
+        return {
+          ...track,
+          uri: track.uri || `spotify:track:${track.id}`, // Ensure URI exists
+          album: track.album || { name: 'Unknown Album', images: [] },
+        };
+      }) || [];
   } else if (type === 'album') {
-    // Для альбомов треки находятся в tracks.items напрямую
+    // For albums, tracks are in tracks.items directly
     validTracks = content.tracks?.items
       ?.filter((track: any) => {
-        // Проверяем, что трек существует и имеет необходимые поля
         if (!track) return false;
-        return track.id && track.name && track.uri && track.artists && track.album;
+        return track.id && track.name && track.artists;
+      })
+      ?.map((track: any) => {
+        return {
+          ...track,
+          uri: track.uri || `spotify:track:${track.id}`, // Ensure URI exists
+          album: content, // Use album data for album tracks
+        };
       }) || [];
   }
 

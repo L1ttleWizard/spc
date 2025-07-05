@@ -52,6 +52,7 @@ export default function TrackList({ tracks, onTrackClick }: TrackListProps) {
             key={track.id} 
             className="grid grid-cols-[16px_4fr_2fr_1fr] gap-4 px-4 py-3 rounded-md hover:bg-neutral-800/50 group cursor-pointer transition-colors duration-200"
             onClick={() => handleTrackClick(track, idx)}
+            onDoubleClick={() => handleTrackClick(track, idx)}
           >
             {/* Номер трека / Кнопка воспроизведения */}
             <div className="flex items-center justify-center relative">

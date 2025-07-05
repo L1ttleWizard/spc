@@ -7,7 +7,6 @@ import { selectUser, selectUserStatus } from '@/redux/slices/userSlice';
 import { useSpotifyPlayer } from '@/hooks/useSpotifyPlayer';
 import Link from 'next/link';
 import Image from 'next/image';
-import PlayerDebug from '@/components/PlayerDebug';
 import HorizontalScrollContainer from '@/components/HorizontalScrollContainer';
 
 type UserPlaylist = SpotifyApi.PlaylistObjectSimplified;
@@ -50,9 +49,9 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
           <div className="flex flex-col items-center justify-center h-full text-center">
             <h2 className="text-2xl font-bold mb-4">Подключите ваш аккаунт Spotify</h2>
             <p className="text-neutral-400 mb-8">Чтобы слушать музыку и видеть ваши плейлисты.</p>
-          <a href="/api/auth/login" className="bg-green-500 text-black font-bold py-3 px-8 rounded-full text-lg hover:bg-green-600 transition-colors">
+          <Link href="/api/auth/login" className="bg-green-500 text-black font-bold py-3 px-8 rounded-full text-lg hover:bg-green-600 transition-colors">
               Подключить Spotify
-            </a>
+            </Link>
           </div>
         ) : (
           <>

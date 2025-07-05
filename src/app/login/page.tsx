@@ -7,11 +7,6 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'fire
 import { auth } from '@/lib/firebase';
 import { setUser } from '@/redux/slices/userSlice';
 
-const LoadingSpinner = () => (
-    <div className="min-h-screen flex items-center justify-center bg-black">
-      <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-green-500"></div>
-    </div>
-  );
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
