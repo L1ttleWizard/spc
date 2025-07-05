@@ -1,0 +1,156 @@
+// src/redux/thunks/playerThunks.ts
+
+import { createAsyncThunk } from '@reduxjs/toolkit';
+import type { RootState } from '../store';
+
+const API_BASE = 'https://api.spotify.com/v1/me/player';
+
+interface ThunkApiConfig {
+  state: RootState;
+  rejectValue: string;
+}
+
+// Управление Play/Pause
+export const togglePlayPause = createAsyncThunk<boolean, string, ThunkApiConfig>(
+  'player/togglePlayPause',
+  async (accessToken, { getState, rejectWithValue }) => {
+    const { player } = getState();
+    const { isPlaying, deviceId } = player;
+
+    if (!deviceId) return rejectWithValue('No device ID');
+    
+    const endpoint = isPlaying ? '/pause' : '/play';
+    const response = await fetch(`${API_BASE}${endpoint}?device_id=${deviceId}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    
+    if (response.status === 204) {
+      return !isPlaying;
+    }
+    return rejectWithValue('Failed to toggle play/pause');
+  }
+);
+
+// Запуск воспроизведения плейлиста/альбома/трека
+export const startPlayback = createAsyncThunk<void, { accessToken: string; contextUri?: string; trackUris?: string[] }, ThunkApiConfig>(
+  'player/startPlayback',
+  async ({ accessToken, contextUri, trackUris }, { getState, rejectWithValue }) => {
+    const { player } = getState();
+    const { deviceId } = player;
+
+    if (!deviceId) return rejectWithValue('No device ID');
+
+    const body: { context_uri?: string; uris?: string[] } = {};
+    if (contextUri) body.context_uri = contextUri;
+    if (trackUris) body.uris = trackUris;
+    
+    const response = await fetch(`${API_BASE}/play?device_id=${deviceId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+        body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
+    });
+
+    if (response.status !== 204) return rejectWithValue('Failed to start playback');
+  }
+);
+
+// Изменение громкости
+export const changeVolume = createAsyncThunk<number, { accessToken: string; volumePercent: number }, ThunkApiConfig>(
+  'player/changeVolume',
+  async ({ accessToken, volumePercent }, { getState, rejectWithValue }) => {
+    const { player } = getState();
+    if (!player.deviceId) return rejectWithValue('No device ID');
+
+    await fetch(`${API_BASE}/volume?volume_percent=${volumePercent}&device_id=${player.deviceId}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+
+    return volumePercent / 100;
+  }
+);
+
+// Перемотка трека
+export const seekToPosition = createAsyncThunk<number, { accessToken: string; positionMs: number }, ThunkApiConfig>(
+  'player/seekToPosition',
+  async ({ accessToken, positionMs }, { getState, rejectWithValue }) => {
+    const { player } = getState();
+    if (!player.deviceId) return rejectWithValue('No device ID');
+
+    await fetch(`${API_BASE}/seek?position_ms=${positionMs}&device_id=${player.deviceId}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    
+    return positionMs;
+  }
+);
+
+// Переключение на предыдущий трек
+export const skipToPrevious = createAsyncThunk<void, string, ThunkApiConfig>(
+  'player/skipToPrevious',
+  async (accessToken, { getState, rejectWithValue }) => {
+    const { player } = getState();
+    if (!player.deviceId) {
+      console.error('Skip to previous: No device ID');
+      return rejectWithValue('No device ID');
+    }
+
+    console.log('Отправляем запрос на предыдущий трек...');
+    const response = await fetch(`${API_BASE}/previous?device_id=${player.deviceId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+
+    if (response.status !== 204) {
+      console.error('Skip to previous failed:', response.status, response.statusText);
+      return rejectWithValue('Failed to skip to previous track');
+    }
+    
+    console.log('Успешно переключились на предыдущий трек');
+  }
+);
+
+// Переключение на следующий трек
+export const skipToNext = createAsyncThunk<void, string, ThunkApiConfig>(
+  'player/skipToNext',
+  async (accessToken, { getState, rejectWithValue }) => {
+    const { player } = getState();
+    if (!player.deviceId) {
+      console.error('Skip to next: No device ID');
+      return rejectWithValue('No device ID');
+    }
+
+    console.log('Отправляем запрос на следующий трек...');
+    const response = await fetch(`${API_BASE}/next?device_id=${player.deviceId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+
+    if (response.status !== 204) {
+      console.error('Skip to next failed:', response.status, response.statusText);
+      return rejectWithValue('Failed to skip to next track');
+    }
+    
+    console.log('Успешно переключились на следующий трек');
+  }
+);
+
+export const getMyCurrentPlaybackState = createAsyncThunk<SpotifyApi.CurrentPlaybackResponse | null, string, ThunkApiConfig>(
+    'player/getMyCurrentPlaybackState',
+    async (accessToken, { rejectWithValue }) => {
+      const response = await fetch(`${API_BASE}`, { // Запрос на /me/player
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+      // Если ничего не играет, Spotify вернет 204 No Content
+      if (response.status === 204) {
+        return null;
+      }
+      if (!response.ok) {
+        return rejectWithValue('Failed to get playback state');
+      }
+      const data = await response.json();
+      return data;
+    }
+  );
