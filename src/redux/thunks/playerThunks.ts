@@ -251,3 +251,45 @@ export const unlikeTrack = createAsyncThunk<
     return trackId;
   }
 );
+
+// Fetch available devices
+export const fetchDevices = createAsyncThunk<
+  SpotifyApi.UserDevice[],
+  { accessToken: string },
+  ThunkApiConfig
+>(
+  'player/fetchDevices',
+  async ({ accessToken }, { rejectWithValue }) => {
+    const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+      return rejectWithValue('Failed to fetch devices');
+    }
+    const data = await response.json();
+    return data.devices;
+  }
+);
+
+// Transfer playback to a device
+export const transferPlayback = createAsyncThunk<
+  string,
+  { accessToken: string; deviceId: string },
+  ThunkApiConfig
+>(
+  'player/transferPlayback',
+  async ({ accessToken, deviceId }, { rejectWithValue }) => {
+    const response = await fetch('https://api.spotify.com/v1/me/player', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ device_ids: [deviceId], play: false }),
+    });
+    if (!response.ok) {
+      return rejectWithValue('Failed to transfer playback');
+    }
+    return deviceId;
+  }
+);

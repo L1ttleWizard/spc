@@ -2,7 +2,7 @@
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../store';
-import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext, playTrack, playPlaylist, likeTrack, unlikeTrack } from '../thunks/playerThunks';
+import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext, playTrack, playPlaylist, likeTrack, unlikeTrack, fetchDevices, transferPlayback } from '../thunks/playerThunks';
 
 export interface SimpleTrack {
     id: string;
@@ -21,13 +21,15 @@ export interface SimpleTrack {
     deviceId: string | null;
     isActive: boolean;
     isPlaying: boolean;
-  currentTrack: SimpleTrack | null;
+    currentTrack: SimpleTrack | null;
     volume: number;
     position: number;
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     error?: string | null;
     prevIsPlaying?: boolean | undefined;
     likedTracks?: string[]; // Add likedTracks for optimistic UI
+    devices?: SpotifyApi.UserDevice[];
+    selectedDeviceId?: string | null;
   }
   
 const initialState: PlayerState = {
@@ -41,6 +43,8 @@ const initialState: PlayerState = {
   error: null,
   prevIsPlaying: undefined,
   likedTracks: [],
+  devices: [],
+  selectedDeviceId: null,
 };
 
 export const playerSlice = createSlice({
@@ -256,6 +260,31 @@ export const playerSlice = createSlice({
           state.likedTracks?.push(action.meta.arg.trackId);
         }
         state.error = action.payload as string || 'Failed to unlike track';
+      })
+      // Fetch Devices
+      .addCase(fetchDevices.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(fetchDevices.fulfilled, (state, action) => {
+        state.devices = action.payload;
+        state.status = 'succeeded';
+      })
+      .addCase(fetchDevices.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string || 'Failed to fetch devices';
+      })
+      // Transfer Playback
+      .addCase(transferPlayback.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(transferPlayback.fulfilled, (state, action) => {
+        state.selectedDeviceId = action.payload;
+        state.deviceId = action.payload;
+        state.status = 'succeeded';
+      })
+      .addCase(transferPlayback.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string || 'Failed to transfer playback';
       });
   },
 });
@@ -263,5 +292,7 @@ export const playerSlice = createSlice({
 export const { setDevice, updatePlayerState, setVolumeState, setActive } = playerSlice.actions;
 
 export const selectPlayerState = (state: RootState) => state.player;
+export const selectDevices = (state: RootState) => state.player.devices;
+export const selectSelectedDeviceId = (state: RootState) => state.player.selectedDeviceId;
 
 export default playerSlice.reducer;

@@ -10,6 +10,7 @@ import { Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, ListMusic, Laptop2
 import { formatTime } from '@/lib/utils';
 import useDebounce from '@/hooks/useDebounce';
 import ProgressBar from './ProgressBar';
+import DevicePicker from './DevicePicker';
 
 export default function Player() {
   const { accessToken } = useSession();
@@ -37,6 +38,7 @@ export default function Player() {
   const debouncedVolume = useDebounce(volume, 500);
   const [optimisticSeek, setOptimisticSeek] = useState<number | null>(null);
   const [seekRollback, setSeekRollback] = useState<number | null>(null);
+  const [showDevicePicker, setShowDevicePicker] = useState(false);
 
   // Получаем последний прослушанный трек из localStorage
   useEffect(() => {
@@ -243,8 +245,14 @@ export default function Player() {
       </div>
       
       <div className="flex items-center justify-end gap-3 w-1/4">
+        <button
+          className="hover:text-white"
+          aria-label="Выбрать устройство"
+          onClick={() => setShowDevicePicker(true)}
+        >
+          <Laptop2 size={18} />
+        </button>
         <button className="hover:text-white"><ListMusic size={18} /></button>
-        <button className="hover:text-white"><Laptop2 size={18} /></button>
         <div className="flex items-center gap-2 w-24">
           <button className="hover:text-white"><VolumeIcon size={18} /></button>
           <ProgressBar
@@ -255,6 +263,7 @@ export default function Player() {
           />
         </div>
       </div>
+      {showDevicePicker && <DevicePicker onClose={() => setShowDevicePicker(false)} />}
     </footer>
     </>
   );
