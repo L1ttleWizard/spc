@@ -1,3 +1,4 @@
+import React from 'react';
 import { Home, Search, Library } from "lucide-react";
 
 const SidebarItemSkeleton = () => (
@@ -19,7 +20,7 @@ const CardSkeleton = () => (
 );
 
 
-export default function Loading() {
+export default function Loading(): JSX.Element {
   return (
     <div className="h-screen bg-black text-white flex flex-col">
         <div className="flex flex-1 overflow-hidden">

@@ -10,7 +10,6 @@ interface ContentPageProps {
 
 export default async function ContentPage({ params }: ContentPageProps) {
   const { type, id } = await params;
-  console.log('Loading content with type:', type, 'ID:', id);
   
   // Проверяем авторизацию
   const cookieStore = await cookies();
@@ -28,8 +27,6 @@ export default async function ContentPage({ params }: ContentPageProps) {
   } else if (type === 'album') {
     content = await getAlbumById(id);
   }
-  
-  console.log('Content data:', content ? 'Found' : 'Not found');
   
   if (!content) return notFound();
 
@@ -67,8 +64,6 @@ export default async function ContentPage({ params }: ContentPageProps) {
         };
       }) || [];
   }
-
-  console.log(`Filtered tracks: ${validTracks.length} valid tracks out of ${content.tracks?.items?.length || 0} total`);
 
   // Создаем URI для плейлиста
   let playlistUri: string | undefined;

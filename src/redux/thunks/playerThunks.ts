@@ -93,22 +93,18 @@ export const skipToPrevious = createAsyncThunk<void, string, ThunkApiConfig>(
   async (accessToken, { getState, rejectWithValue }) => {
     const { player } = getState();
     if (!player.deviceId) {
-      console.error('Skip to previous: No device ID');
       return rejectWithValue('No device ID');
     }
 
-    console.log('Отправляем запрос на предыдущий трек...');
     const response = await fetch(`${API_BASE}/previous?device_id=${player.deviceId}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
 
     if (response.status !== 204) {
-      console.error('Skip to previous failed:', response.status, response.statusText);
       return rejectWithValue('Failed to skip to previous track');
     }
     
-    console.log('Успешно переключились на предыдущий трек');
   }
 );
 
@@ -118,22 +114,18 @@ export const skipToNext = createAsyncThunk<void, string, ThunkApiConfig>(
   async (accessToken, { getState, rejectWithValue }) => {
     const { player } = getState();
     if (!player.deviceId) {
-      console.error('Skip to next: No device ID');
       return rejectWithValue('No device ID');
     }
 
-    console.log('Отправляем запрос на следующий трек...');
     const response = await fetch(`${API_BASE}/next?device_id=${player.deviceId}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
 
     if (response.status !== 204) {
-      console.error('Skip to next failed:', response.status, response.statusText);
       return rejectWithValue('Failed to skip to next track');
     }
     
-    console.log('Успешно переключились на следующий трек');
   }
 );
 

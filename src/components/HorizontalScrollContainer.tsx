@@ -15,7 +15,7 @@ export default function HorizontalScrollContainer({
   className = "",
   showScrollIndicators = true,
   autoHideScrollbar = true
-}: HorizontalScrollContainerProps) {
+}: HorizontalScrollContainerProps): JSX.Element {
   const [showLeftIndicator, setShowLeftIndicator] = useState(false);
   const [showRightIndicator, setShowRightIndicator] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);

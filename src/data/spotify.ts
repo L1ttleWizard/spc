@@ -284,9 +284,7 @@ export async function getLikedSongs() {
   }
 
   try {
-    console.log('Getting liked songs');
     const spotifyApi = await getSpotifyServerApi();
-    console.log('Spotify API initialized');
     
     // Ограничиваем до 200 треков для ускорения загрузки
     const allTracks = [];
@@ -309,8 +307,6 @@ export async function getLikedSongs() {
       
       offset += limit;
     }
-    
-    console.log(`Liked songs data retrieved successfully: ${allTracks.length} tracks`);
     
     // Преобразуем в формат плейлиста для совместимости
     const likedSongsPlaylist = {
@@ -343,7 +339,6 @@ export async function getPlaylistById(playlistId: string) {
   }
 
   try {
-    console.log('Getting playlist by ID:', playlistId);
     
     // Специальная обработка для Liked Songs
     if (playlistId === 'liked-songs') {
@@ -351,10 +346,8 @@ export async function getPlaylistById(playlistId: string) {
     }
     
     const spotifyApi = await getSpotifyServerApi();
-    console.log('Spotify API initialized');
     
     const result = await spotifyApi.getPlaylist(playlistId);
-    console.log('Playlist data retrieved successfully');
     
     setCachedData(cacheKey, result.body);
     return result.body;
@@ -372,12 +365,9 @@ export async function getAlbumById(albumId: string) {
   }
 
   try {
-    console.log('Getting album by ID:', albumId);
     const spotifyApi = await getSpotifyServerApi();
-    console.log('Spotify API initialized');
     
     const result = await spotifyApi.getAlbum(albumId);
-    console.log('Album data retrieved successfully');
     
     setCachedData(cacheKey, result.body);
     return result.body;

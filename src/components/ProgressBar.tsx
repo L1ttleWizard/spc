@@ -18,7 +18,7 @@ export default function ProgressBar({
   disabled = false,
   className = "",
   variant = 'track'
-}: ProgressBarProps) {
+}: ProgressBarProps): JSX.Element {
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);

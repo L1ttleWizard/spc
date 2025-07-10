@@ -105,7 +105,6 @@ export function useSpotifyPlayer() {
   }, [accessToken, dispatch]);
 
   const playTrack = useCallback(async (trackUri: string) => {
-    console.log('playTrack called:', { trackUri, deviceId, hasAccessToken: !!accessToken });
     
     if (!deviceId || !accessToken) {
       console.warn('Cannot play track: missing deviceId or accessToken', { deviceId: !!deviceId, accessToken: !!accessToken });
@@ -119,7 +118,6 @@ export function useSpotifyPlayer() {
     }
 
     try {
-      console.log('Sending play request for track:', trackUri);
       const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         body: JSON.stringify({ uris: [trackUri] }),
@@ -150,7 +148,6 @@ export function useSpotifyPlayer() {
   }, [deviceId, accessToken]);
 
   const playPlaylist = useCallback(async (playlistUri: string, trackIndex: number = 0) => {
-    console.log('playPlaylist called:', { playlistUri, trackIndex, deviceId, hasAccessToken: !!accessToken });
     
     if (!deviceId || !accessToken) {
       console.warn('Cannot play playlist: missing deviceId or accessToken', { deviceId: !!deviceId, accessToken: !!accessToken });
@@ -164,7 +161,6 @@ export function useSpotifyPlayer() {
     }
 
     try {
-      console.log('Sending play request for playlist:', playlistUri, 'at position:', trackIndex);
       const requestBody = {
         context_uri: playlistUri,
         offset: { position: trackIndex }

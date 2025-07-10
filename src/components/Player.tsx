@@ -11,7 +11,7 @@ import { formatTime } from '@/lib/utils';
 import useDebounce from '@/hooks/useDebounce';
 import ProgressBar from './ProgressBar';
 
-export default function Player() {
+export default function Player(): JSX.Element {
   const { accessToken } = useSession();
   const dispatch = useDispatch<AppDispatch>();
   const playerState = useSelector(selectPlayerState);
@@ -60,18 +60,18 @@ export default function Player() {
   }, [currentTrack]);
 
   useEffect(() => {
-    console.log('Player State:', {
-      isActive,
-      isPlaying,
-      hasTrack: !!currentTrack,
-      volume,
-      position,
-      currentPosition,
-      volumePercent: Math.round(volume * 100),
-      trackProgress: currentTrack ? Math.round((currentPosition / currentTrack.duration_ms) * 100) : 0,
-      hasAccessToken: !!accessToken,
-      hasLastPlayedTrack: !!lastPlayedTrack
-    });
+    // console.log('Player State:', {
+    //   isActive,
+    //   isPlaying,
+    //   hasTrack: !!currentTrack,
+    //   volume,
+    //   position,
+    //   currentPosition,
+    //   volumePercent: Math.round(volume * 100),
+    //   trackProgress: currentTrack ? Math.round((currentPosition / currentTrack.duration_ms) * 100) : 0,
+    //   hasAccessToken: !!accessToken,
+    //   hasLastPlayedTrack: !!lastPlayedTrack
+    // });
   }, [isActive, isPlaying, currentTrack, volume, position, currentPosition, accessToken, lastPlayedTrack]);
 
   useEffect(() => {
@@ -112,19 +112,19 @@ export default function Player() {
 
   const handleSkipToPrevious = useCallback(() => {
     if (!accessToken || !isActive) {
-      console.log('Skip to previous: неактивно или нет токена');
+      // console.log('Skip to previous: неактивно или нет токена');
       return;
     }
-    console.log('Переключаем на предыдущий трек');
+    // console.log('Переключаем на предыдущий трек');
     dispatch(skipToPrevious(accessToken));
   }, [dispatch, accessToken, isActive]);
 
   const handleSkipToNext = useCallback(() => {
     if (!accessToken || !isActive) {
-      console.log('Skip to next: неактивно или нет токена');
+      // console.log('Skip to next: неактивно или нет токена');
       return;
     }
-    console.log('Переключаем на следующий трек');
+    // console.log('Переключаем на следующий трек');
     dispatch(skipToNext(accessToken));
   }, [dispatch, accessToken, isActive]);
 

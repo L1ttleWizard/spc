@@ -18,7 +18,7 @@ export default function AppLayout({
   sidebarItems, 
   currentSort, 
   currentFilter 
-}: AppLayoutProps) {
+}: AppLayoutProps): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

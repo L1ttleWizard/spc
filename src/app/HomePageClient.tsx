@@ -1,5 +1,6 @@
 "use client";
 
+import React from 'react';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
@@ -19,7 +20,7 @@ interface HomePageClientProps {
   newReleases: NewReleaseAlbum[] | null;
 }
 
-export default function HomePageClient({ playlists, albums, newReleases }: HomePageClientProps) {
+export default function HomePageClient({ playlists, albums, newReleases }: HomePageClientProps): JSX.Element {
   const user = useSelector(selectUser);
   const status = useSelector(selectUserStatus);
   const router = useRouter();

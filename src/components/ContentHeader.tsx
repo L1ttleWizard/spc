@@ -26,7 +26,7 @@ export default function ContentHeader({
   followers,
   onPlay,
   deviceId
-}: ContentHeaderProps) {
+}: ContentHeaderProps): JSX.Element {
   const displayName = owner || artist;
   const canPlay = deviceId && onPlay;
 
@@ -85,7 +85,6 @@ export default function ContentHeader({
         <div className="flex items-center gap-4">
           <button 
             onClick={() => {
-              console.log('🔥 Play button clicked in ContentHeader', { deviceId, hasOnPlay: !!onPlay, canPlay });
               if (onPlay) onPlay();
             }}
             disabled={!canPlay}

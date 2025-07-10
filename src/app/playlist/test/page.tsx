@@ -1,4 +1,5 @@
-export default function TestPlaylistPage() {
+import React from 'react';
+export default function TestPlaylistPage(): JSX.Element {
   return (
     <main className="flex-1 overflow-y-auto p-8">
       <h1 className="text-4xl font-bold mb-4">Тестовая страница плейлиста</h1>

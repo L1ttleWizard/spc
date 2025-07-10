@@ -21,7 +21,7 @@ const sortOptions: { value: LibrarySortType; label: string }[] = [
     { value: 'creator', label: 'По создателю' },
 ];
 
-export default function Sidebar({ items, currentSort, currentFilter }: SidebarProps) {
+export default function Sidebar({ items, currentSort, currentFilter }: SidebarProps): JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
