@@ -2,7 +2,13 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Play, Heart, MoreHorizontal } from 'lucide-react';
+import { Play, MoreHorizontal } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { likeTrack } from '@/redux/thunks/playerThunks';
+import { selectPlayerState } from '@/redux/slices/playerSlice';
+import { useSession } from '@/hooks/useSession';
+import { AppDispatch } from '@/redux/store';
+import { Heart } from 'lucide-react';
 
 interface ContentHeaderProps {
   type: 'playlist' | 'album' | 'content';
@@ -14,6 +20,7 @@ interface ContentHeaderProps {
   followers?: number | undefined;
   onPlay?: () => void;
   deviceId?: string | null;
+  id: string; // Add id prop for like logic
 }
 
 export default function ContentHeader({
@@ -25,10 +32,15 @@ export default function ContentHeader({
   trackCount,
   followers,
   onPlay,
-  deviceId
+  deviceId,
+  id
 }: ContentHeaderProps) {
+  const dispatch = useDispatch<AppDispatch>();
+  const { likedTracks } = useSelector(selectPlayerState);
+  const { accessToken } = useSession();
   const displayName = owner || artist;
   const canPlay = deviceId && onPlay;
+  const isLiked = likedTracks?.includes(id);
 
   return (
     <>
@@ -98,8 +110,15 @@ export default function ContentHeader({
             {canPlay ? 'Воспроизвести' : (deviceId ? 'Загрузка...' : 'Подключение...')}
           </button>
           
-          <button className="text-neutral-300 hover:text-white transition-colors">
-            <Heart size={32} />
+          <button className="text-neutral-300 hover:text-white transition-colors"
+            aria-label={isLiked ? 'Unlike' : 'Like'}
+            onClick={() => {
+              if (accessToken) {
+                dispatch(likeTrack({ accessToken, trackId: id }));
+              }
+            }}
+          >
+            <Heart size={32} fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" />
           </button>
           
           <button className="text-neutral-300 hover:text-white transition-colors">
