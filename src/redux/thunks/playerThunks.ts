@@ -172,7 +172,7 @@ export const playTrack = createAsyncThunk<void, { accessToken: string; deviceId:
       } else {
         return rejectWithValue('Failed to play track');
       }
-    } catch (error) {
+    } catch {
       return rejectWithValue('Network error playing track');
     }
   }
@@ -202,7 +202,7 @@ export const playPlaylist = createAsyncThunk<void, { accessToken: string; device
       } else {
         return rejectWithValue('Failed to play playlist');
       }
-    } catch (error) {
+    } catch {
       return rejectWithValue('Network error playing playlist');
     }
   }

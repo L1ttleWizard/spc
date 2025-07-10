@@ -28,7 +28,7 @@ import '@testing-library/jest-dom';
 const mockStore = configureStore([]);
 
 function createDispatchMock() {
-  const promise: any = Promise.resolve();
+  const promise = Promise.resolve() as Promise<unknown> & { unwrap: () => Promise<unknown> };
   promise.unwrap = () => Promise.resolve();
   return jest.fn(() => promise);
 }

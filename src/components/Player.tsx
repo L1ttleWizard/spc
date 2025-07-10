@@ -36,7 +36,6 @@ export default function Player() {
   } | null>(null);
   
   const debouncedVolume = useDebounce(volume, 500);
-  const [optimisticSeek, setOptimisticSeek] = useState<number | null>(null);
   const [seekRollback, setSeekRollback] = useState<number | null>(null);
   const [showDevicePicker, setShowDevicePicker] = useState(false);
 
@@ -143,7 +142,6 @@ export default function Player() {
     setIsSeeking(true);
     const newPosition = (parseInt(e.target.value) / 100) * currentTrack.duration_ms;
     setCurrentPosition(newPosition);
-    setOptimisticSeek(newPosition);
   };
   
   const handleSeekUp = (e: React.MouseEvent<HTMLInputElement>) => {
@@ -159,7 +157,6 @@ export default function Player() {
         if (seekRollback !== null) setCurrentPosition(seekRollback);
       })
       .finally(() => {
-        setOptimisticSeek(null);
         setSeekRollback(null);
       });
   };

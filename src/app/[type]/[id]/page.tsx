@@ -10,75 +10,75 @@ interface ContentPageProps {
 
 export default async function ContentPage({ params }: ContentPageProps) {
   const { type, id } = await params;
-  
-  // Проверяем авторизацию
   const cookieStore = await cookies();
   const hasToken = cookieStore.has('spotify_access_token');
-  
-  if (!hasToken) {
-    return notFound();
-  }
-  
-  let content = null;
-  
-  // В зависимости от типа загружаем разные данные
+  if (!hasToken) return notFound();
+
+  // Liked Songs pseudo-playlist is not a true PlaylistObjectFull, so allow for its shape
+  type LikedSongsPlaylist = {
+    id: string;
+    name: string;
+    description: string;
+    images: { url: string }[];
+    owner: { display_name: string };
+    followers: { total: number };
+    tracks: { items: { track: SpotifyApi.TrackObjectFull }[] };
+  };
+
+  let content: SpotifyApi.PlaylistObjectFull | SpotifyApi.AlbumObjectFull | LikedSongsPlaylist | null = null;
   if (type === 'playlist') {
     content = await getPlaylistById(id);
   } else if (type === 'album') {
     content = await getAlbumById(id);
   }
-  
   if (!content) return notFound();
 
-  // Filter and transform tracks to ensure proper format
-  let validTracks: any[] = [];
-  
+  let validTracks: SpotifyApi.TrackObjectFull[] = [];
   if (type === 'playlist') {
-    // For playlists, tracks are in tracks.items[].track
-    validTracks = content.tracks?.items
-      ?.filter((item: any) => {
-        if (!item || !item.track) return false;
-        const track = item.track;
-        return track.id && track.name && track.artists;
+    // Handle both PlaylistObjectFull and LikedSongsPlaylist
+    const playlistContent = content as SpotifyApi.PlaylistObjectFull | LikedSongsPlaylist;
+    validTracks = playlistContent.tracks?.items
+      ?.filter((item: { track: SpotifyApi.TrackObjectFull | null }) => {
+        return !!item && !!item.track && item.track.id && item.track.name && item.track.artists;
       })
-      ?.map((item: any) => {
-        const track = item.track;
+      ?.map((item: { track: SpotifyApi.TrackObjectFull | null }) => {
+        const track = item.track!;
         return {
           ...track,
-          uri: track.uri || `spotify:track:${track.id}`, // Ensure URI exists
+          uri: track.uri || `spotify:track:${track.id}`,
           album: track.album || { name: 'Unknown Album', images: [] },
         };
       }) || [];
   } else if (type === 'album') {
-    // For albums, tracks are in tracks.items directly
-    validTracks = content.tracks?.items
-      ?.filter((track: any) => {
+    const albumContent = content as SpotifyApi.AlbumObjectFull;
+    validTracks = albumContent.tracks?.items
+      ?.filter((track: SpotifyApi.TrackObjectSimplified) => {
         if (!track) return false;
         return track.id && track.name && track.artists;
       })
-      ?.map((track: any) => {
+      ?.map((track: SpotifyApi.TrackObjectSimplified) => {
+        // Convert TrackObjectSimplified to TrackObjectFull shape for downstream compatibility
         return {
           ...track,
-          uri: track.uri || `spotify:track:${track.id}`, // Ensure URI exists
-          album: content, // Use album data for album tracks
-        };
+          uri: track.uri || `spotify:track:${track.id}`,
+          album: albumContent,
+          external_ids: {},
+          popularity: 0,
+        } as SpotifyApi.TrackObjectFull;
       }) || [];
   }
 
-  // Создаем URI для плейлиста
   let playlistUri: string | undefined;
   if (type === 'playlist' && id !== 'liked-songs') {
     playlistUri = `spotify:playlist:${id}`;
   }
 
-  // Загружаем данные сайдбара
   const sidebarData = await getLibraryData();
 
-  // Type guards for Playlist and Album
-  function isPlaylist(obj: any): obj is { owner?: { display_name?: string }, followers?: { total?: number } } {
+  function isPlaylist(obj: unknown): obj is SpotifyApi.PlaylistObjectFull | LikedSongsPlaylist {
     return obj && typeof obj === 'object' && 'owner' in obj && 'followers' in obj;
   }
-  function isAlbum(obj: any): obj is { artists?: { name?: string }[] } {
+  function isAlbum(obj: unknown): obj is SpotifyApi.AlbumObjectFull {
     return obj && typeof obj === 'object' && 'artists' in obj;
   }
 

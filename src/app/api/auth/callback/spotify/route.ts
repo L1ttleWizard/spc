@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { setCookie } from 'cookies-next';
-import { API_URLS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/constants';
+import { API_URLS, ERROR_MESSAGES } from '@/constants';
 import { SPOTIFY_CONFIG } from '@/lib/spotify';
 import { handleError, ErrorType, logError } from '@/lib/error-handler';
 
