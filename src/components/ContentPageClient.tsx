@@ -20,13 +20,13 @@ interface Track {
 interface ContentPageClientProps {
   type: 'playlist' | 'album';
   name: string;
-  imageUrl?: string;
-  owner?: string;
-  artist?: string;
+  imageUrl?: string | undefined;
+  owner?: string | undefined;
+  artist?: string | undefined;
   trackCount: number;
-  followers?: number;
+  followers?: number | undefined;
   tracks: Track[];
-  playlistUri?: string;
+  playlistUri?: string | undefined;
 }
 
 export default function ContentPageClient({

@@ -60,9 +60,9 @@ export async function getSpotifyServerApi(): Promise<SpotifyWebApi> {
   const spotifyApi = new SpotifyWebApi({
     accessToken,
     refreshToken,
-    clientId: SPOTIFY_CONFIG.clientId,
-    clientSecret: SPOTIFY_CONFIG.clientSecret,
-    redirectUri: SPOTIFY_CONFIG.redirectUri,
+    clientId: SPOTIFY_CONFIG.clientId || '',
+    clientSecret: SPOTIFY_CONFIG.clientSecret || '',
+    redirectUri: SPOTIFY_CONFIG.redirectUri || '',
   });
 
   return spotifyApi;

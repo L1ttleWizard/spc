@@ -30,7 +30,9 @@ export class SpotifyError extends Error {
     this.name = 'SpotifyError';
     this.type = type;
     this.originalError = originalError;
-    this.context = context;
+    if (context) {
+      this.context = context;
+    }
   }
 }
 

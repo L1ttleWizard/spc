@@ -7,11 +7,11 @@ import { Play, Heart, MoreHorizontal } from 'lucide-react';
 interface ContentHeaderProps {
   type: 'playlist' | 'album' | 'content';
   name: string;
-  imageUrl?: string;
-  owner?: string;
-  artist?: string;
+  imageUrl?: string | undefined;
+  owner?: string | undefined;
+  artist?: string | undefined;
   trackCount: number;
-  followers?: number;
+  followers?: number | undefined;
   onPlay?: () => void;
   deviceId?: string | null;
 }
