@@ -15,7 +15,7 @@ export default function Player() {
   const { accessToken } = useSession();
   const dispatch = useDispatch<AppDispatch>();
   const playerState = useSelector(selectPlayerState);
-  const { isActive, isPlaying, currentTrack, volume, position } = playerState;
+  const { isActive, isPlaying, currentTrack, volume, position, error } = playerState;
 
   const [currentPosition, setCurrentPosition] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -154,7 +154,13 @@ export default function Player() {
   const isLastPlayedTrack = !currentTrack && lastPlayedTrack;
 
   return (
-    <footer className="h-24 bg-black border-t border-neutral-800 text-white p-4 flex items-center justify-between">
+    <>
+      {error && (
+        <div className="fixed bottom-28 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-50 animate-fade-in">
+          {error}
+        </div>
+      )}
+      <footer className="h-24 bg-black border-t border-neutral-800 text-white p-4 flex items-center justify-between">
       <div className="flex items-center gap-3 w-1/4 min-w-[180px]">
         {displayTrack ? (
           <>
@@ -206,5 +212,6 @@ export default function Player() {
         </div>
       </div>
     </footer>
+    </>
   );
 }
