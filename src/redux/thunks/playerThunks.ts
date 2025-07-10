@@ -229,3 +229,25 @@ export const likeTrack = createAsyncThunk<
     return trackId;
   }
 );
+
+// Unlike a track (remove from Liked Songs)
+export const unlikeTrack = createAsyncThunk<
+  string,
+  { accessToken: string; trackId: string },
+  ThunkApiConfig
+>(
+  'player/unlikeTrack',
+  async ({ accessToken, trackId }, { rejectWithValue }) => {
+    const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${trackId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      return rejectWithValue('Failed to unlike track');
+    }
+    return trackId;
+  }
+);

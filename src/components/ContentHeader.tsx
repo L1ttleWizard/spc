@@ -4,7 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import { Play, MoreHorizontal } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { likeTrack } from '@/redux/thunks/playerThunks';
+import { likeTrack, unlikeTrack } from '@/redux/thunks/playerThunks';
 import { selectPlayerState } from '@/redux/slices/playerSlice';
 import { useSession } from '@/hooks/useSession';
 import { AppDispatch } from '@/redux/store';
@@ -114,7 +114,11 @@ export default function ContentHeader({
             aria-label={isLiked ? 'Unlike' : 'Like'}
             onClick={() => {
               if (accessToken) {
-                dispatch(likeTrack({ accessToken, trackId: id }));
+                if (isLiked) {
+                  dispatch(unlikeTrack({ accessToken, trackId: id }));
+                } else {
+                  dispatch(likeTrack({ accessToken, trackId: id }));
+                }
               }
             }}
           >

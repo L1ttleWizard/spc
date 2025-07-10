@@ -2,7 +2,7 @@
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../store';
-import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext, playTrack, playPlaylist, likeTrack } from '../thunks/playerThunks';
+import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext, playTrack, playPlaylist, likeTrack, unlikeTrack } from '../thunks/playerThunks';
 
 export interface SimpleTrack {
     id: string;
@@ -236,6 +236,26 @@ export const playerSlice = createSlice({
           state.likedTracks = state.likedTracks.filter(id => id !== action.meta.arg.trackId);
         }
         state.error = action.payload as string || 'Failed to like track';
+      })
+      // Unlike Track
+      .addCase(unlikeTrack.pending, (state, action) => {
+        // Optimistically remove from likedTracks
+        if (action.meta.arg.trackId && state.likedTracks) {
+          state.likedTracks = state.likedTracks.filter(id => id !== action.meta.arg.trackId);
+        }
+      })
+      .addCase(unlikeTrack.fulfilled, (state, action) => {
+        // Ensure it's removed from likedTracks
+        if (action.payload && state.likedTracks) {
+          state.likedTracks = state.likedTracks.filter(id => id !== action.payload);
+        }
+      })
+      .addCase(unlikeTrack.rejected, (state, action) => {
+        // Rollback optimistic update if needed
+        if (action.meta.arg.trackId && !state.likedTracks?.includes(action.meta.arg.trackId)) {
+          state.likedTracks?.push(action.meta.arg.trackId);
+        }
+        state.error = action.payload as string || 'Failed to unlike track';
       });
   },
 });
