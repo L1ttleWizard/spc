@@ -135,4 +135,22 @@ describe('Player Sliders', () => {
       expect(slider).toBeDisabled();
     });
   });
+
+  it('dispatches unlikeTrack on click if liked', () => {
+    store = mockStore({
+      player: {
+        ...store.getState().player,
+        likedTracks: ['1'],
+      },
+    });
+    store.dispatch = createDispatchMock();
+    render(
+      <Provider store={store}>
+        <Player />
+      </Provider>
+    );
+    const likeBtn = screen.getByLabelText('like');
+    fireEvent.click(likeBtn);
+    expect(store.dispatch).toHaveBeenCalled();
+  });
 });
