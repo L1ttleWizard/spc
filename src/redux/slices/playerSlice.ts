@@ -2,7 +2,7 @@
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../store';
-import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext, playTrack, playPlaylist } from '../thunks/playerThunks';
+import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext, playTrack, playPlaylist, likeTrack } from '../thunks/playerThunks';
 
 export interface SimpleTrack {
     id: string;
@@ -27,6 +27,7 @@ export interface SimpleTrack {
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     error?: string | null;
     prevIsPlaying?: boolean | undefined;
+    likedTracks?: string[]; // Add likedTracks for optimistic UI
   }
   
 const initialState: PlayerState = {
@@ -39,6 +40,7 @@ const initialState: PlayerState = {
   status: 'idle',
   error: null,
   prevIsPlaying: undefined,
+  likedTracks: [],
 };
 
 export const playerSlice = createSlice({
@@ -214,6 +216,26 @@ export const playerSlice = createSlice({
         state.isPlaying = state.prevIsPlaying ?? false;
         state.prevIsPlaying = undefined;
         state.error = action.payload as string || 'Failed to play playlist';
+      })
+      // Like Track
+      .addCase(likeTrack.pending, (state, action) => {
+        // Optimistically add to likedTracks
+        if (action.meta.arg.trackId && !state.likedTracks?.includes(action.meta.arg.trackId)) {
+          state.likedTracks?.push(action.meta.arg.trackId);
+        }
+      })
+      .addCase(likeTrack.fulfilled, (state, action) => {
+        // Ensure it's in likedTracks
+        if (action.payload && !state.likedTracks?.includes(action.payload)) {
+          state.likedTracks?.push(action.payload);
+        }
+      })
+      .addCase(likeTrack.rejected, (state, action) => {
+        // Rollback optimistic update if needed
+        if (action.meta.arg.trackId && state.likedTracks) {
+          state.likedTracks = state.likedTracks.filter(id => id !== action.meta.arg.trackId);
+        }
+        state.error = action.payload as string || 'Failed to like track';
       });
   },
 });

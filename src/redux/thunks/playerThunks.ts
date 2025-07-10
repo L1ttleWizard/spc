@@ -207,3 +207,25 @@ export const playPlaylist = createAsyncThunk<void, { accessToken: string; device
     }
   }
 );
+
+// Like a track (add to Liked Songs)
+export const likeTrack = createAsyncThunk<
+  string,
+  { accessToken: string; trackId: string },
+  ThunkApiConfig
+>(
+  'player/likeTrack',
+  async ({ accessToken, trackId }, { rejectWithValue }) => {
+    const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${trackId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      return rejectWithValue('Failed to like track');
+    }
+    return trackId;
+  }
+);
