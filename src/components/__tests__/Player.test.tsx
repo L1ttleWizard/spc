@@ -2,6 +2,14 @@ import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import configureStore from 'redux-mock-store';
+jest.mock('@/hooks/useSession', () => ({
+  useSession: () => ({
+    accessToken: 'mock-token',
+    isLoading: false,
+    error: null,
+    refresh: jest.fn(),
+  }),
+}));
 import Player from '../Player';
 
 const mockStore = configureStore([]);
