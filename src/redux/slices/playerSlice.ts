@@ -25,6 +25,7 @@ export interface SimpleTrack {
     volume: number;
     position: number;
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
+    error?: string | null;
   }
   
 const initialState: PlayerState = {
@@ -35,6 +36,7 @@ const initialState: PlayerState = {
   volume: 1,
   position: 0,
   status: 'idle',
+  error: null,
 };
 
 export const playerSlice = createSlice({
@@ -171,22 +173,28 @@ export const playerSlice = createSlice({
       // Play Track
       .addCase(playTrack.pending, (state) => {
         state.status = 'loading';
+        state.error = null;
       })
       .addCase(playTrack.fulfilled, (state) => {
         state.status = 'succeeded';
+        state.error = null;
       })
-      .addCase(playTrack.rejected, (state) => {
+      .addCase(playTrack.rejected, (state, action) => {
         state.status = 'failed';
+        state.error = action.payload as string || 'Failed to play track';
       })
       // Play Playlist
       .addCase(playPlaylist.pending, (state) => {
         state.status = 'loading';
+        state.error = null;
       })
       .addCase(playPlaylist.fulfilled, (state) => {
         state.status = 'succeeded';
+        state.error = null;
       })
-      .addCase(playPlaylist.rejected, (state) => {
+      .addCase(playPlaylist.rejected, (state, action) => {
         state.status = 'failed';
+        state.error = action.payload as string || 'Failed to play playlist';
       });
   },
 });
