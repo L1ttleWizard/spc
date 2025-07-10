@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSession } from '@/hooks/useSession';
 import { selectPlayerState, setVolumeState } from '@/redux/slices/playerSlice';
-import { togglePlayPause, changeVolume, seekToPosition, skipToPrevious, skipToNext, startPlayback } from '@/redux/thunks/playerThunks';
+import { togglePlayPause, changeVolume, seekToPosition, skipToPrevious, skipToNext, startPlayback, likeTrack } from '@/redux/thunks/playerThunks';
 import { AppDispatch } from '@/redux/store';
 import { Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, ListMusic, Laptop2, Volume1, Volume2, VolumeX, Heart } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
@@ -186,7 +186,17 @@ export default function Player() {
               </p>
               <p className="text-xs text-neutral-400 truncate">{displayTrack.artists.map((a: { name: string; uri: string }) => a.name).join(', ')}</p>
             </div>
-            <button className="text-neutral-400 hover:text-white"><Heart size={18} /></button>
+            <button
+              className="text-neutral-400 hover:text-white"
+              onClick={() => {
+                if (accessToken && displayTrack) {
+                  dispatch(likeTrack({ accessToken, trackId: displayTrack.id }));
+                }
+              }}
+              disabled={!accessToken || !displayTrack}
+            >
+              <Heart size={18} />
+            </button>
           </>
         ) : (
           <div className="w-14 h-14" />
