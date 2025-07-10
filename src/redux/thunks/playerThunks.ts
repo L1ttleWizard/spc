@@ -44,14 +44,19 @@ export const startPlayback = createAsyncThunk<void, { accessToken: string; conte
     const body: { context_uri?: string; uris?: string[] } = {};
     if (contextUri) body.context_uri = contextUri;
     if (trackUris) body.uris = trackUris;
-    
-    const response = await fetch(`${API_BASE}/play?device_id=${deviceId}`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-        body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
-    });
+
+    const fetchOptions: RequestInit = {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    };
+    if (Object.keys(body).length > 0) {
+      fetchOptions.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(`${API_BASE}/play?device_id=${deviceId}`, fetchOptions);
 
     if (response.status !== 204) return rejectWithValue('Failed to start playback');
+    return;
   }
 );
 
@@ -104,7 +109,7 @@ export const skipToPrevious = createAsyncThunk<void, string, ThunkApiConfig>(
     if (response.status !== 204) {
       return rejectWithValue('Failed to skip to previous track');
     }
-    
+    return;
   }
 );
 
@@ -125,7 +130,7 @@ export const skipToNext = createAsyncThunk<void, string, ThunkApiConfig>(
     if (response.status !== 204) {
       return rejectWithValue('Failed to skip to next track');
     }
-    
+    return;
   }
 );
 

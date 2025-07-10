@@ -13,6 +13,12 @@ interface AppLayoutProps {
   currentFilter?: LibraryFilterType;
 }
 
+interface SidebarProps {
+  items?: LibraryItem[] | null;
+  currentSort: LibrarySortType;
+  currentFilter: LibraryFilterType;
+}
+
 export default function AppLayout({ 
   children, 
   sidebarItems, 

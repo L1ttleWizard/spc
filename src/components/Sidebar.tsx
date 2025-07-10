@@ -9,9 +9,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 interface SidebarProps {
-  items: LibraryItem[] | null;
-  currentSort?: LibrarySortType;
-  currentFilter?: LibraryFilterType;
+  items?: LibraryItem[] | null;
+  currentSort: LibrarySortType;
+  currentFilter: LibraryFilterType;
 }
 
 const sortOptions: { value: LibrarySortType; label: string }[] = [

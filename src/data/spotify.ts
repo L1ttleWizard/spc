@@ -188,7 +188,8 @@ export async function getLibraryData(
     }, { sort, filter });
 
   } catch (error) {
-    return handleError(error, { sort, filter }).data as LibraryItem[] | null;
+    handleError(error, { sort, filter });
+    return null;
   }
 };
 
