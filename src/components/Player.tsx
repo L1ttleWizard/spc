@@ -35,6 +35,8 @@ export default function Player() {
   } | null>(null);
   
   const debouncedVolume = useDebounce(volume, 500);
+  const [optimisticSeek, setOptimisticSeek] = useState<number | null>(null);
+  const [seekRollback, setSeekRollback] = useState<number | null>(null);
 
   // Получаем последний прослушанный трек из localStorage
   useEffect(() => {
@@ -139,13 +141,25 @@ export default function Player() {
     setIsSeeking(true);
     const newPosition = (parseInt(e.target.value) / 100) * currentTrack.duration_ms;
     setCurrentPosition(newPosition);
+    setOptimisticSeek(newPosition);
   };
   
   const handleSeekUp = (e: React.MouseEvent<HTMLInputElement>) => {
     if (!accessToken || !currentTrack) return;
     setIsSeeking(false);
     const newPositionMs = (parseInt((e.target as HTMLInputElement).value) / 100) * currentTrack.duration_ms;
-    dispatch(seekToPosition({ accessToken, positionMs: Math.round(newPositionMs) }));
+    setSeekRollback(currentPosition); // Save rollback point
+    setCurrentPosition(newPositionMs); // Optimistically update
+    dispatch(seekToPosition({ accessToken, positionMs: Math.round(newPositionMs) }))
+      .unwrap()
+      .catch(() => {
+        // Roll back if seek fails
+        if (seekRollback !== null) setCurrentPosition(seekRollback);
+      })
+      .finally(() => {
+        setOptimisticSeek(null);
+        setSeekRollback(null);
+      });
   };
   
   const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
@@ -214,13 +228,10 @@ export default function Player() {
         <button className="hover:text-white"><Laptop2 size={18} /></button>
         <div className="flex items-center gap-2 w-24">
           <button className="hover:text-white"><VolumeIcon size={18} /></button>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={Math.round(volume * 100)}
+          <ProgressBar
+            variant="volume"
+            value={volume * 100}
             onChange={handleVolumeChange}
-            className="w-24 h-1 accent-green-500"
             disabled={!isActive || isLoading}
           />
         </div>
