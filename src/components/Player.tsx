@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSession } from '@/hooks/useSession';
 import { selectPlayerState, setVolumeState } from '@/redux/slices/playerSlice';
-import { togglePlayPause, changeVolume, seekToPosition, skipToPrevious, skipToNext, startPlayback, likeTrack } from '@/redux/thunks/playerThunks';
+import { togglePlayPause, changeVolume, seekToPosition, skipToPrevious, skipToNext, startPlayback, likeTrack, unlikeTrack } from '@/redux/thunks/playerThunks';
 import { AppDispatch } from '@/redux/store';
 import { Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, ListMusic, Laptop2, Volume1, Volume2, VolumeX, Heart, Heart as HeartFilled } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
@@ -191,7 +191,11 @@ export default function Player() {
               className={`hover:text-white ${likedTracks?.includes(displayTrack.id) ? 'text-green-500' : 'text-neutral-400'}`}
               onClick={() => {
                 if (accessToken && displayTrack) {
-                  dispatch(likeTrack({ accessToken, trackId: displayTrack.id }));
+                  if (likedTracks?.includes(displayTrack.id)) {
+                    dispatch(unlikeTrack({ accessToken, trackId: displayTrack.id }));
+                  } else {
+                    dispatch(likeTrack({ accessToken, trackId: displayTrack.id }));
+                  }
                 }
               }}
               disabled={!accessToken || !displayTrack}
