@@ -1,0 +1,73 @@
+import React from 'react';
+import { render, fireEvent, screen } from '@testing-library/react';
+import { Provider } from 'react-redux';
+import configureStore from 'redux-mock-store';
+import Player from '../Player';
+
+const mockStore = configureStore([]);
+
+describe('Player Sliders', () => {
+  let store;
+
+  beforeEach(() => {
+    store = mockStore({
+      player: {
+        isActive: true,
+        isPlaying: true,
+        currentTrack: {
+          id: '1',
+          uri: 'spotify:track:1',
+          name: 'Test Track',
+          duration_ms: 200000,
+          artists: [{ name: 'Artist', uri: 'spotify:artist:1' }],
+          album: { name: 'Album', uri: 'spotify:album:1', images: [{ url: '' }] }
+        },
+        volume: 0.5,
+        position: 50000,
+        status: 'idle',
+        error: null,
+      },
+    });
+    store.dispatch = jest.fn();
+  });
+
+  it('updates volume on slider change', () => {
+    render(
+      <Provider store={store}>
+        <Player />
+      </Provider>
+    );
+    const sliders = screen.getAllByRole('slider');
+    const volumeSlider = sliders[1]; // Second slider is volume
+    fireEvent.change(volumeSlider, { target: { value: '80' } });
+    expect(store.dispatch).toHaveBeenCalled();
+  });
+
+  it('updates position on track progress slider change', () => {
+    render(
+      <Provider store={store}>
+        <Player />
+      </Provider>
+    );
+    const sliders = screen.getAllByRole('slider');
+    const progressSlider = sliders[0]; // First slider is progress
+    fireEvent.change(progressSlider, { target: { value: '60' } });
+    fireEvent.mouseUp(progressSlider);
+    expect(store.dispatch).toHaveBeenCalled();
+  });
+
+  it('disables sliders when not active', () => {
+    store = mockStore({
+      player: { ...store.getState().player, isActive: false }
+    });
+    render(
+      <Provider store={store}>
+        <Player />
+      </Provider>
+    );
+    const sliders = screen.getAllByRole('slider');
+    sliders.forEach(slider => {
+      expect(slider).toBeDisabled();
+    });
+  });
+});
