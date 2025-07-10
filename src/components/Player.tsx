@@ -6,7 +6,7 @@ import { useSession } from '@/hooks/useSession';
 import { selectPlayerState, setVolumeState } from '@/redux/slices/playerSlice';
 import { togglePlayPause, changeVolume, seekToPosition, skipToPrevious, skipToNext, startPlayback, likeTrack } from '@/redux/thunks/playerThunks';
 import { AppDispatch } from '@/redux/store';
-import { Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, ListMusic, Laptop2, Volume1, Volume2, VolumeX, Heart } from 'lucide-react';
+import { Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, ListMusic, Laptop2, Volume1, Volume2, VolumeX, Heart, Heart as HeartFilled } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import useDebounce from '@/hooks/useDebounce';
 import ProgressBar from './ProgressBar';
@@ -15,7 +15,7 @@ export default function Player() {
   const { accessToken } = useSession();
   const dispatch = useDispatch<AppDispatch>();
   const playerState = useSelector(selectPlayerState);
-  const { isActive, isPlaying, currentTrack, volume, position, error, status } = playerState;
+  const { isActive, isPlaying, currentTrack, volume, position, error, status, likedTracks } = playerState;
   const isLoading = status === 'loading';
 
   const [currentPosition, setCurrentPosition] = useState(0);
@@ -187,7 +187,7 @@ export default function Player() {
               <p className="text-xs text-neutral-400 truncate">{displayTrack.artists.map((a: { name: string; uri: string }) => a.name).join(', ')}</p>
             </div>
             <button
-              className="text-neutral-400 hover:text-white"
+              className={`hover:text-white ${likedTracks?.includes(displayTrack.id) ? 'text-green-500' : 'text-neutral-400'}`}
               onClick={() => {
                 if (accessToken && displayTrack) {
                   dispatch(likeTrack({ accessToken, trackId: displayTrack.id }));
@@ -195,7 +195,11 @@ export default function Player() {
               }}
               disabled={!accessToken || !displayTrack}
             >
-              <Heart size={18} />
+              {likedTracks?.includes(displayTrack.id) ? (
+                <HeartFilled size={18} fill="currentColor" stroke="currentColor" />
+              ) : (
+                <Heart size={18} />
+              )}
             </button>
           </>
         ) : (
