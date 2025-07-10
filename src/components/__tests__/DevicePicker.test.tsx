@@ -61,4 +61,21 @@ describe('DevicePicker', () => {
     fireEvent.click(screen.getByText('iPhone'));
     expect(store.dispatch).toHaveBeenCalled();
   });
+
+  it('auto-refreshes device list every 5 seconds', () => {
+    jest.useFakeTimers();
+    render(
+      <Provider store={store}>
+        <DevicePicker onClose={() => {}} />
+      </Provider>
+    );
+    // Initial fetch
+    expect(store.dispatch).toHaveBeenCalled();
+    // Advance time by 5 seconds
+    jest.advanceTimersByTime(5000);
+    expect(store.dispatch).toHaveBeenCalledTimes(2);
+    jest.advanceTimersByTime(5000);
+    expect(store.dispatch).toHaveBeenCalledTimes(3);
+    jest.useRealTimers();
+  });
 });
