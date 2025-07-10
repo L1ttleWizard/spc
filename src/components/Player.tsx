@@ -187,6 +187,7 @@ export default function Player() {
               <p className="text-xs text-neutral-400 truncate">{displayTrack.artists.map((a: { name: string; uri: string }) => a.name).join(', ')}</p>
             </div>
             <button
+              aria-label="like"
               className={`hover:text-white ${likedTracks?.includes(displayTrack.id) ? 'text-green-500' : 'text-neutral-400'}`}
               onClick={() => {
                 if (accessToken && displayTrack) {
@@ -196,9 +197,9 @@ export default function Player() {
               disabled={!accessToken || !displayTrack}
             >
               {likedTracks?.includes(displayTrack.id) ? (
-                <HeartFilled size={18} fill="currentColor" stroke="currentColor" />
+                <HeartFilled data-testid="like-icon" size={18} fill="currentColor" stroke="currentColor" />
               ) : (
-                <Heart size={18} />
+                <Heart data-testid="like-icon" size={18} />
               )}
             </button>
           </>
