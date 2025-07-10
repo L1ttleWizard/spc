@@ -10,9 +10,27 @@ jest.mock('@/hooks/useSession', () => ({
     refresh: jest.fn(),
   }),
 }));
+// Silence img src empty string warning
+let origConsoleError: typeof console.error;
+beforeAll(() => {
+  origConsoleError = console.error;
+  jest.spyOn(console, 'error').mockImplementation((msg, ...args) => {
+    if (typeof msg === 'string' && msg.includes('An empty string ("\") was passed to the src attribute')) return;
+    return origConsoleError(msg, ...args);
+  });
+});
+afterAll(() => {
+  console.error = origConsoleError;
+});
 import Player from '../Player';
 
 const mockStore = configureStore([]);
+
+function createDispatchMock() {
+  const promise: any = Promise.resolve();
+  promise.unwrap = () => Promise.resolve();
+  return jest.fn(() => promise);
+}
 
 describe('Player Sliders', () => {
   let store;
@@ -36,7 +54,7 @@ describe('Player Sliders', () => {
         error: null,
       },
     });
-    store.dispatch = jest.fn();
+    store.dispatch = createDispatchMock();
   });
 
   it('updates volume on slider change', () => {
@@ -68,6 +86,7 @@ describe('Player Sliders', () => {
     store = mockStore({
       player: { ...store.getState().player, isActive: false }
     });
+    store.dispatch = createDispatchMock();
     render(
       <Provider store={store}>
         <Player />
