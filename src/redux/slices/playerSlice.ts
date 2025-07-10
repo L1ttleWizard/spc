@@ -2,7 +2,7 @@
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../store';
-import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext } from '../thunks/playerThunks';
+import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext, playTrack, playPlaylist } from '../thunks/playerThunks';
 
 export interface SimpleTrack {
     id: string;
@@ -166,6 +166,26 @@ export const playerSlice = createSlice({
         state.status = 'succeeded';
       })
       .addCase(skipToNext.rejected, (state) => {
+        state.status = 'failed';
+      })
+      // Play Track
+      .addCase(playTrack.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(playTrack.fulfilled, (state) => {
+        state.status = 'succeeded';
+      })
+      .addCase(playTrack.rejected, (state) => {
+        state.status = 'failed';
+      })
+      // Play Playlist
+      .addCase(playPlaylist.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(playPlaylist.fulfilled, (state) => {
+        state.status = 'succeeded';
+      })
+      .addCase(playPlaylist.rejected, (state) => {
         state.status = 'failed';
       });
   },
