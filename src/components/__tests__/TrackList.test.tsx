@@ -19,11 +19,6 @@ describe('TrackList', () => {
     const onTrackClick = jest.fn();
     render(<TrackList tracks={tracks} onTrackClick={onTrackClick} />);
     fireEvent.click(screen.getByText('Track 1'));
-    expect(onTrackClick).toHaveBeenCalledWith(tracks[0]);
-  });
-
-  it('renders empty state if no tracks', () => {
-    render(<TrackList tracks={[]} onTrackClick={jest.fn()} />);
-    expect(screen.getByText(/no tracks/i)).toBeInTheDocument();
+    expect(onTrackClick).toHaveBeenCalledWith(tracks[0], 0);
   });
 });

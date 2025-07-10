@@ -4,22 +4,23 @@ import AlbumCard from '../AlbumCard';
 import '@testing-library/jest-dom';
 
 describe('AlbumCard', () => {
-  const album = {
+  const props = {
     name: 'Test Album',
-    uri: 'spotify:album:1',
-    images: [{ url: 'cover.jpg' }],
+    artist: 'Test Artist',
+    imageUrl: 'cover.jpg',
+    id: '1',
   };
 
   it('renders album name and image', () => {
-    render(<AlbumCard album={album} onClick={jest.fn()} />);
+    render(<AlbumCard {...props} />);
     expect(screen.getByText('Test Album')).toBeInTheDocument();
     expect(screen.getByRole('img')).toHaveAttribute('src', 'cover.jpg');
   });
 
-  it('calls onClick when clicked', () => {
-    const onClick = jest.fn();
-    render(<AlbumCard album={album} onClick={onClick} />);
+  it('calls link when clicked', () => {
+    render(<AlbumCard {...props} />);
     fireEvent.click(screen.getByText('Test Album'));
-    expect(onClick).toHaveBeenCalled();
+    // No onClick, but should navigate via Link
+    expect(window.location.pathname).toContain('/album/1');
   });
 });

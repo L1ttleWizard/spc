@@ -1,30 +1,29 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import Sidebar from '../Sidebar';
 import '@testing-library/jest-dom';
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+}));
+import type { LibraryItem } from '@/types';
 
 describe('Sidebar', () => {
-  const links = [
-    { name: 'Home', path: '/' },
-    { name: 'Library', path: '/library' },
+  const items: LibraryItem[] = [
+    { id: '1', type: 'playlist', name: 'My Playlist', subtitle: 'By Me', imageUrl: undefined, creator: 'Me', dateAdded: null, lastPlayed: null },
+    { id: '2', type: 'album', name: 'My Album', subtitle: 'By Me', imageUrl: undefined, creator: 'Me', dateAdded: null, lastPlayed: null },
   ];
 
-  it('renders navigation links', () => {
-    render(<Sidebar links={links} activePath="/" onNavigate={jest.fn()} />);
-    expect(screen.getByText('Home')).toBeInTheDocument();
-    expect(screen.getByText('Library')).toBeInTheDocument();
+  it('renders items', () => {
+    render(<Sidebar items={items} />);
+    expect(screen.getByText('My Playlist')).toBeInTheDocument();
+    expect(screen.getByText('My Album')).toBeInTheDocument();
   });
 
-  it('highlights the active route', () => {
-    render(<Sidebar links={links} activePath="/library" onNavigate={jest.fn()} />);
-    const active = screen.getByText('Library');
-    expect(active).toHaveClass('active');
-  });
-
-  it('calls onNavigate when a link is clicked', () => {
-    const onNavigate = jest.fn();
-    render(<Sidebar links={links} activePath="/" onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText('Library'));
-    expect(onNavigate).toHaveBeenCalledWith('/library');
+  it('renders filter and sort buttons', () => {
+    render(<Sidebar items={items} />);
+    expect(screen.getByText(/плейлисты/i)).toBeInTheDocument();
+    expect(screen.getByText(/альбомы/i)).toBeInTheDocument();
   });
 });
