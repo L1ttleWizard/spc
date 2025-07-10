@@ -26,6 +26,7 @@ export interface SimpleTrack {
     position: number;
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     error?: string | null;
+    prevIsPlaying?: boolean | undefined;
   }
   
 const initialState: PlayerState = {
@@ -37,6 +38,7 @@ const initialState: PlayerState = {
   position: 0,
   status: 'idle',
   error: null,
+  prevIsPlaying: undefined,
 };
 
 export const playerSlice = createSlice({
@@ -86,16 +88,23 @@ export const playerSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Toggle Play/Pause
+      // Toggle Play/Pause Optimistic
       .addCase(togglePlayPause.pending, (state) => {
+        state.prevIsPlaying = state.isPlaying;
+        state.isPlaying = !state.isPlaying;
         state.status = 'loading';
+        state.error = null;
       })
       .addCase(togglePlayPause.fulfilled, (state, action) => {
-        state.isPlaying = action.payload;
         state.status = 'succeeded';
+        state.error = null;
+        state.isPlaying = action.payload;
+        state.prevIsPlaying = undefined;
       })
       .addCase(togglePlayPause.rejected, (state) => {
         state.status = 'failed';
+        state.isPlaying = state.prevIsPlaying ?? false;
+        state.prevIsPlaying = undefined;
       })
       // Start Playback
       .addCase(startPlayback.fulfilled, (state) => {
@@ -170,30 +179,40 @@ export const playerSlice = createSlice({
       .addCase(skipToNext.rejected, (state) => {
         state.status = 'failed';
       })
-      // Play Track
+      // Play Track Optimistic
       .addCase(playTrack.pending, (state) => {
+        state.prevIsPlaying = state.isPlaying;
+        state.isPlaying = true;
         state.status = 'loading';
         state.error = null;
       })
       .addCase(playTrack.fulfilled, (state) => {
         state.status = 'succeeded';
         state.error = null;
+        state.prevIsPlaying = undefined;
       })
       .addCase(playTrack.rejected, (state, action) => {
         state.status = 'failed';
+        state.isPlaying = state.prevIsPlaying ?? false;
+        state.prevIsPlaying = undefined;
         state.error = action.payload as string || 'Failed to play track';
       })
-      // Play Playlist
+      // Play Playlist Optimistic
       .addCase(playPlaylist.pending, (state) => {
+        state.prevIsPlaying = state.isPlaying;
+        state.isPlaying = true;
         state.status = 'loading';
         state.error = null;
       })
       .addCase(playPlaylist.fulfilled, (state) => {
         state.status = 'succeeded';
         state.error = null;
+        state.prevIsPlaying = undefined;
       })
       .addCase(playPlaylist.rejected, (state, action) => {
         state.status = 'failed';
+        state.isPlaying = state.prevIsPlaying ?? false;
+        state.prevIsPlaying = undefined;
         state.error = action.payload as string || 'Failed to play playlist';
       });
   },
