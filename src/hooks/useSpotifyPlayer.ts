@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from '@/hooks/useSession';
 import { useDispatch } from 'react-redux';
 import { setDevice, updatePlayerState, setActive } from '@/redux/slices/playerSlice';
-import { getMyCurrentPlaybackState } from '@/redux/thunks/playerThunks';
+import { getMyCurrentPlaybackState, playTrack as playTrackThunk, playPlaylist as playPlaylistThunk } from '@/redux/thunks/playerThunks';
 import { AppDispatch } from '@/redux/store';
 
 interface SpotifyPlayer {
@@ -104,7 +104,7 @@ export function useSpotifyPlayer() {
     };
   }, [accessToken, dispatch]);
 
-  const playTrack = useCallback(async (trackUri: string) => {
+  const playTrack = useCallback((trackUri: string) => {
     
     if (!deviceId || !accessToken) {
       console.warn('Cannot play track: missing deviceId or accessToken', { deviceId: !!deviceId, accessToken: !!accessToken });
@@ -117,37 +117,10 @@ export function useSpotifyPlayer() {
       return;
     }
 
-    try {
-      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ uris: [trackUri] }),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
+    dispatch(playTrackThunk({ accessToken, deviceId, trackUri }));
+  }, [deviceId, accessToken, dispatch]);
 
-      if (response.status === 204) {
-        console.log('✅ Successfully started playing track:', trackUri);
-      } else if (response.status === 404) {
-        console.error('❌ Device not found. Try refreshing or selecting another device.');
-      } else if (response.status === 403) {
-        console.error('❌ Spotify Premium required for playback control.');
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Failed to play track:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText,
-          trackUri
-        });
-      }
-    } catch (error) {
-      console.error('❌ Network error playing track:', error);
-    }
-  }, [deviceId, accessToken]);
-
-  const playPlaylist = useCallback(async (playlistUri: string, trackIndex: number = 0) => {
+  const playPlaylist = useCallback((playlistUri: string, trackIndex: number = 0) => {
     
     if (!deviceId || !accessToken) {
       console.warn('Cannot play playlist: missing deviceId or accessToken', { deviceId: !!deviceId, accessToken: !!accessToken });
@@ -160,42 +133,8 @@ export function useSpotifyPlayer() {
       return;
     }
 
-    try {
-      const requestBody = {
-        context_uri: playlistUri,
-        offset: { position: trackIndex }
-      };
-      
-      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-        method: 'PUT',
-        body: JSON.stringify(requestBody),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-
-      if (response.status === 204) {
-        console.log('✅ Successfully started playing playlist:', playlistUri, 'at position:', trackIndex);
-      } else if (response.status === 404) {
-        console.error('❌ Device not found. Try refreshing or selecting another device.');
-      } else if (response.status === 403) {
-        console.error('❌ Spotify Premium required for playback control.');
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Failed to play playlist:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText,
-          playlistUri,
-          trackIndex,
-          requestBody
-        });
-      }
-    } catch (error) {
-      console.error('❌ Network error playing playlist:', error);
-    }
-  }, [deviceId, accessToken]);
+    dispatch(playPlaylistThunk({ accessToken, deviceId, playlistUri, trackIndex }));
+  }, [deviceId, accessToken, dispatch]);
 
   const togglePlay = useCallback(async () => {
     if (!player) return;

@@ -151,3 +151,59 @@ export const getMyCurrentPlaybackState = createAsyncThunk<SpotifyApi.CurrentPlay
       return data;
     }
   );
+
+// Play a single track
+export const playTrack = createAsyncThunk<void, { accessToken: string; deviceId: string; trackUri: string }, ThunkApiConfig>(
+  'player/playTrack',
+  async ({ accessToken, deviceId, trackUri }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ uris: [trackUri] }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      if (response.status === 204) {
+        // Refresh player state
+        dispatch(getMyCurrentPlaybackState(accessToken));
+        return;
+      } else {
+        return rejectWithValue('Failed to play track');
+      }
+    } catch (error) {
+      return rejectWithValue('Network error playing track');
+    }
+  }
+);
+
+// Play a playlist (or album) from a given position
+export const playPlaylist = createAsyncThunk<void, { accessToken: string; deviceId: string; playlistUri: string; trackIndex?: number }, ThunkApiConfig>(
+  'player/playPlaylist',
+  async ({ accessToken, deviceId, playlistUri, trackIndex = 0 }, { dispatch, rejectWithValue }) => {
+    try {
+      const requestBody = {
+        context_uri: playlistUri,
+        offset: { position: trackIndex }
+      };
+      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: 'PUT',
+        body: JSON.stringify(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      if (response.status === 204) {
+        // Refresh player state
+        dispatch(getMyCurrentPlaybackState(accessToken));
+        return;
+      } else {
+        return rejectWithValue('Failed to play playlist');
+      }
+    } catch (error) {
+      return rejectWithValue('Network error playing playlist');
+    }
+  }
+);
