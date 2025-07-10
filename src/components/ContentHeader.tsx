@@ -26,7 +26,7 @@ export default function ContentHeader({
   followers,
   onPlay,
   deviceId
-}: ContentHeaderProps): JSX.Element {
+}: ContentHeaderProps) {
   const displayName = owner || artist;
   const canPlay = deviceId && onPlay;
 

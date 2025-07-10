@@ -9,9 +9,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 interface SidebarProps {
-  items?: LibraryItem[] | null;
-  currentSort?: LibrarySortType;
-  currentFilter?: LibraryFilterType;
+  items?: LibraryItem[] | null | undefined;
+  currentSort?: LibrarySortType | undefined;
+  currentFilter?: LibraryFilterType | undefined;
 }
 
 const sortOptions: { value: LibrarySortType; label: string }[] = [
@@ -21,7 +21,7 @@ const sortOptions: { value: LibrarySortType; label: string }[] = [
     { value: 'creator', label: 'По создателю' },
 ];
 
-export default function Sidebar({ items, currentSort, currentFilter }: SidebarProps): JSX.Element {
+export default function Sidebar({ items, currentSort, currentFilter }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

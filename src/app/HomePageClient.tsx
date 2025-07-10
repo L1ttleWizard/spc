@@ -20,7 +20,7 @@ interface HomePageClientProps {
   newReleases: NewReleaseAlbum[] | null;
 }
 
-export default function HomePageClient({ playlists, albums, newReleases }: HomePageClientProps): JSX.Element {
+export default function HomePageClient({ playlists, albums, newReleases }: HomePageClientProps) {
   const user = useSelector(selectUser);
   const status = useSelector(selectUserStatus);
   const router = useRouter();

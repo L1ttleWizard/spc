@@ -7,7 +7,7 @@ interface ContentSectionProps {
   children: React.ReactNode;
 }
 
-export default function ContentSection({ title, children }: ContentSectionProps): JSX.Element {
+export default function ContentSection({ title, children }: ContentSectionProps) {
   return (
     <section className="mb-8">
       <h2 className="text-2xl font-bold mb-4">{title}</h2>

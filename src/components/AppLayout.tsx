@@ -14,9 +14,9 @@ interface AppLayoutProps {
 }
 
 interface SidebarProps {
-  items?: LibraryItem[] | null;
-  currentSort: LibrarySortType;
-  currentFilter: LibraryFilterType;
+  items?: LibraryItem[] | null | undefined;
+  currentSort?: LibrarySortType | undefined;
+  currentFilter?: LibraryFilterType | undefined;
 }
 
 export default function AppLayout({ 
@@ -24,7 +24,7 @@ export default function AppLayout({
   sidebarItems, 
   currentSort, 
   currentFilter 
-}: AppLayoutProps): JSX.Element {
+}: AppLayoutProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,9 +49,9 @@ export default function AppLayout({
       <div className="flex flex-1 overflow-hidden">
         {/* Сайдбар */}
         <Sidebar 
-          items={sidebarItems}
-          currentSort={currentSort}
-          currentFilter={currentFilter}
+          items={sidebarItems as SidebarProps['items']}
+          currentSort={currentSort as SidebarProps['currentSort']}
+          currentFilter={currentFilter as SidebarProps['currentFilter']}
         />
         
         {/* Основная область */}

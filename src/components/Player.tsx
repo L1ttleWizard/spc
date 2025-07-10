@@ -11,7 +11,7 @@ import { formatTime } from '@/lib/utils';
 import useDebounce from '@/hooks/useDebounce';
 import ProgressBar from './ProgressBar';
 
-export default function Player(): JSX.Element {
+export default function Player() {
   const { accessToken } = useSession();
   const dispatch = useDispatch<AppDispatch>();
   const playerState = useSelector(selectPlayerState);

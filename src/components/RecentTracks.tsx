@@ -22,7 +22,7 @@ interface RecentTracksRowProps {
   onPlayTrack?: (trackUri: string) => void;
 }
 
-export default function RecentTracksRow({ tracks, onPlayTrack }: RecentTracksRowProps): JSX.Element {
+export default function RecentTracksRow({ tracks, onPlayTrack }: RecentTracksRowProps) {
   const getCardType = (track: RecentTrack) => {
     if (track.id === 'liked-songs') return 'liked';
     return 'album';

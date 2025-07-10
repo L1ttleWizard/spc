@@ -6,7 +6,7 @@ import React from 'react';
 import { Home, Search } from 'lucide-react';
 import Link from 'next/link';
 
-export default function Header(): JSX.Element {
+export default function Header() {
   const [searchQuery, setSearchQuery] = React.useState('');
 
   return (

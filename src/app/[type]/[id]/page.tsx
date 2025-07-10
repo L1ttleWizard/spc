@@ -74,16 +74,24 @@ export default async function ContentPage({ params }: ContentPageProps) {
   // Загружаем данные сайдбара
   const sidebarData = await getLibraryData();
 
+  // Type guards for Playlist and Album
+  function isPlaylist(obj: any): obj is { owner?: { display_name?: string }, followers?: { total?: number } } {
+    return obj && typeof obj === 'object' && 'owner' in obj && 'followers' in obj;
+  }
+  function isAlbum(obj: any): obj is { artists?: { name?: string }[] } {
+    return obj && typeof obj === 'object' && 'artists' in obj;
+  }
+
   return (
     <AppLayout sidebarItems={sidebarData}>
       <ContentPageClient
         type={type as 'playlist' | 'album'}
         name={content.name}
         imageUrl={content.images?.[0]?.url}
-        owner={content.owner?.display_name}
-        artist={content.artists?.[0]?.name}
+        owner={isPlaylist(content) ? content.owner?.display_name : undefined}
+        artist={isAlbum(content) ? content.artists?.[0]?.name : undefined}
         trackCount={validTracks.length}
-        followers={content.followers?.total}
+        followers={isPlaylist(content) ? content.followers?.total : undefined}
         tracks={validTracks}
         playlistUri={playlistUri}
       />

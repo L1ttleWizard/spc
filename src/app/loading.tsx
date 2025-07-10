@@ -20,7 +20,7 @@ const CardSkeleton = () => (
 );
 
 
-export default function Loading(): JSX.Element {
+export default function Loading() {
   return (
     <div className="h-screen bg-black text-white flex flex-col">
         <div className="flex flex-1 overflow-hidden">

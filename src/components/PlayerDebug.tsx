@@ -5,7 +5,7 @@ import { useSelector } from 'react-redux';
 import { selectPlayerState } from '@/redux/slices/playerSlice';
 import { useSession } from '@/hooks/useSession';
 
-export default function PlayerDebug(): JSX.Element {
+export default function PlayerDebug() {
   const { accessToken, isLoading } = useSession();
   const playerState = useSelector(selectPlayerState);
 

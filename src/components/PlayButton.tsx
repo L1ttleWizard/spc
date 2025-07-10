@@ -9,7 +9,7 @@ interface PlayButtonProps {
   className?: string;
 }
 
-export default function PlayButton({ onClick, size = 'md', className = '' }: PlayButtonProps): JSX.Element {
+export default function PlayButton({ onClick, size = 'md', className = '' }: PlayButtonProps) {
   const sizeClasses = {
     sm: 'p-1',
     md: 'p-2',

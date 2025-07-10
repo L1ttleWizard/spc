@@ -22,7 +22,7 @@ interface TrackListProps {
   onTrackClick?: (track: Track, index: number) => void;
 }
 
-export default function TrackList({ tracks, onTrackClick }: TrackListProps): JSX.Element {
+export default function TrackList({ tracks, onTrackClick }: TrackListProps) {
   const formatDuration = (durationMs: number) => {
     const minutes = Math.floor(durationMs / 60000);
     const seconds = String(Math.floor((durationMs % 60000) / 1000)).padStart(2, '0');
@@ -63,7 +63,7 @@ export default function TrackList({ tracks, onTrackClick }: TrackListProps): JSX
                 <PlayButton 
                   size="sm" 
                   onClick={(e) => {
-                    e.stopPropagation();
+                    if (e) e.stopPropagation();
                     handleTrackClick(track, idx);
                   }}
                 />

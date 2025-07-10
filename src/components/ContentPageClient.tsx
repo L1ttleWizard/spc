@@ -39,7 +39,7 @@ export default function ContentPageClient({
   followers,
   tracks,
   playlistUri
-}: ContentPageClientProps): JSX.Element {
+}: ContentPageClientProps) {
   const { playTrack, playPlaylist, deviceId } = useSpotifyPlayerContext();
 
   const handlePlayAll = () => {

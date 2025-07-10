@@ -46,7 +46,10 @@ async function getTokensFromCookies(): Promise<{
     );
   }
 
-  return { accessToken, refreshToken };
+  if (refreshToken) {
+    return { accessToken, refreshToken };
+  }
+  return { accessToken };
 }
 
 /**

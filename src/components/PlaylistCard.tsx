@@ -10,7 +10,7 @@ export interface PlaylistCardProps {
   id: string;
 }
 
-export default function PlaylistCard({ name, description, imageUrl, id }: PlaylistCardProps): JSX.Element {
+export default function PlaylistCard({ name, description, imageUrl, id }: PlaylistCardProps) {
   const handleClick = () => {
   };
 

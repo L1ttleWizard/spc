@@ -10,7 +10,7 @@ interface AlbumCardProps {
   id?: string;
 }
 
-export default function AlbumCard({ name, artist, imageUrl, id }: AlbumCardProps): JSX.Element {
+export default function AlbumCard({ name, artist, imageUrl, id }: AlbumCardProps) {
   const CardContent = () => (
     <div className="bg-neutral-800/50 hover:bg-neutral-800/70 rounded-lg p-4 transition-colors cursor-pointer group">
       <div className="aspect-square mb-4 relative">
