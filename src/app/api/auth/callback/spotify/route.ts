@@ -121,8 +121,6 @@ export async function GET(request: NextRequest) {
     setTokenCookies(response, request, access_token, refresh_token, expires_in);
 
     // Log success
-    console.log(SUCCESS_MESSAGES.TOKEN_OBTAINED);
-
     return response;
 
   } catch (err) {

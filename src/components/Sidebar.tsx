@@ -9,9 +9,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 interface SidebarProps {
-  items: LibraryItem[] | null;
-  currentSort?: LibrarySortType;
-  currentFilter?: LibraryFilterType;
+  items?: LibraryItem[] | null | undefined;
+  currentSort?: LibrarySortType | undefined;
+  currentFilter?: LibraryFilterType | undefined;
 }
 
 const sortOptions: { value: LibrarySortType; label: string }[] = [
@@ -49,7 +49,9 @@ export default function Sidebar({ items, currentSort, currentFilter }: SidebarPr
     handleNavigation(params.toString());
   }
 
-  const activeSortLabel = sortOptions.find(opt => opt.value === (currentSort || 'recents'))?.label;
+  const sort = currentSort || 'recents';
+  const filter = currentFilter || 'playlist';
+  const activeSortLabel = sortOptions.find(opt => opt.value === sort)?.label;
   
   return (
     <aside className="text-gray-400 bg-black fixed left-0 top-0 z-20 h-screen w-72 p-2 hidden md:block">
@@ -77,14 +79,14 @@ export default function Sidebar({ items, currentSort, currentFilter }: SidebarPr
             <button 
               onClick={() => handleFilterClick('playlist')} 
               disabled={isPending}
-              className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors disabled:opacity-50 ${currentFilter === 'playlist' ? 'bg-white text-black' : 'bg-neutral-800 text-white hover:bg-neutral-700'}`}
+              className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors disabled:opacity-50 ${filter === 'playlist' ? 'bg-white text-black' : 'bg-neutral-800 text-white hover:bg-neutral-700'}`}
             >
               Плейлисты
             </button>
             <button 
               onClick={() => handleFilterClick('album')}
               disabled={isPending}
-              className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors disabled:opacity-50 ${currentFilter === 'album' ? 'bg-white text-black' : 'bg-neutral-800 text-white hover:bg-neutral-700'}`}
+              className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors disabled:opacity-50 ${filter === 'album' ? 'bg-white text-black' : 'bg-neutral-800 text-white hover:bg-neutral-700'}`}
             >
               Альбомы
             </button>
@@ -127,7 +129,7 @@ export default function Sidebar({ items, currentSort, currentFilter }: SidebarPr
                                               }`}
                                           >
                                               {option.label}
-                                              {option.value === (currentSort || 'recents') && <Check className="h-4 w-4" />}
+                                              {option.value === sort && <Check className="h-4 w-4" />}
                                           </button>
                                       )}
                                   </Menu.Item>

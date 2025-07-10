@@ -2,12 +2,12 @@
 
 "use client"
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Home, Search } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Header() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   return (
     <header className="sticky top-0 z-10 p-4 flex items-center justify-center bg-neutral-900/70 backdrop-blur-sm">

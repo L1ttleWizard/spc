@@ -2,7 +2,7 @@
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../store';
-import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext } from '../thunks/playerThunks';
+import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext, playTrack, playPlaylist, likeTrack, unlikeTrack, fetchDevices, transferPlayback } from '../thunks/playerThunks';
 
 export interface SimpleTrack {
     id: string;
@@ -21,10 +21,15 @@ export interface SimpleTrack {
     deviceId: string | null;
     isActive: boolean;
     isPlaying: boolean;
-  currentTrack: SimpleTrack | null;
+    currentTrack: SimpleTrack | null;
     volume: number;
     position: number;
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
+    error?: string | null;
+    prevIsPlaying?: boolean | undefined;
+    likedTracks?: string[]; // Add likedTracks for optimistic UI
+    devices?: SpotifyApi.UserDevice[];
+    selectedDeviceId?: string | null;
   }
   
 const initialState: PlayerState = {
@@ -35,6 +40,11 @@ const initialState: PlayerState = {
   volume: 1,
   position: 0,
   status: 'idle',
+  error: null,
+  prevIsPlaying: undefined,
+  likedTracks: [],
+  devices: [],
+  selectedDeviceId: null,
 };
 
 export const playerSlice = createSlice({
@@ -84,16 +94,23 @@ export const playerSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Toggle Play/Pause
+      // Toggle Play/Pause Optimistic
       .addCase(togglePlayPause.pending, (state) => {
+        state.prevIsPlaying = state.isPlaying;
+        state.isPlaying = !state.isPlaying;
         state.status = 'loading';
+        state.error = null;
       })
       .addCase(togglePlayPause.fulfilled, (state, action) => {
-        state.isPlaying = action.payload;
         state.status = 'succeeded';
+        state.error = null;
+        state.isPlaying = action.payload;
+        state.prevIsPlaying = undefined;
       })
       .addCase(togglePlayPause.rejected, (state) => {
         state.status = 'failed';
+        state.isPlaying = state.prevIsPlaying ?? false;
+        state.prevIsPlaying = undefined;
       })
       // Start Playback
       .addCase(startPlayback.fulfilled, (state) => {
@@ -167,6 +184,107 @@ export const playerSlice = createSlice({
       })
       .addCase(skipToNext.rejected, (state) => {
         state.status = 'failed';
+      })
+      // Play Track Optimistic
+      .addCase(playTrack.pending, (state) => {
+        state.prevIsPlaying = state.isPlaying;
+        state.isPlaying = true;
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(playTrack.fulfilled, (state) => {
+        state.status = 'succeeded';
+        state.error = null;
+        state.prevIsPlaying = undefined;
+      })
+      .addCase(playTrack.rejected, (state, action) => {
+        state.status = 'failed';
+        state.isPlaying = state.prevIsPlaying ?? false;
+        state.prevIsPlaying = undefined;
+        state.error = action.payload as string || 'Failed to play track';
+      })
+      // Play Playlist Optimistic
+      .addCase(playPlaylist.pending, (state) => {
+        state.prevIsPlaying = state.isPlaying;
+        state.isPlaying = true;
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(playPlaylist.fulfilled, (state) => {
+        state.status = 'succeeded';
+        state.error = null;
+        state.prevIsPlaying = undefined;
+      })
+      .addCase(playPlaylist.rejected, (state, action) => {
+        state.status = 'failed';
+        state.isPlaying = state.prevIsPlaying ?? false;
+        state.prevIsPlaying = undefined;
+        state.error = action.payload as string || 'Failed to play playlist';
+      })
+      // Like Track
+      .addCase(likeTrack.pending, (state, action) => {
+        // Optimistically add to likedTracks
+        if (action.meta.arg.trackId && !state.likedTracks?.includes(action.meta.arg.trackId)) {
+          state.likedTracks?.push(action.meta.arg.trackId);
+        }
+      })
+      .addCase(likeTrack.fulfilled, (state, action) => {
+        // Ensure it's in likedTracks
+        if (action.payload && !state.likedTracks?.includes(action.payload)) {
+          state.likedTracks?.push(action.payload);
+        }
+      })
+      .addCase(likeTrack.rejected, (state, action) => {
+        // Rollback optimistic update if needed
+        if (action.meta.arg.trackId && state.likedTracks) {
+          state.likedTracks = state.likedTracks.filter(id => id !== action.meta.arg.trackId);
+        }
+        state.error = action.payload as string || 'Failed to like track';
+      })
+      // Unlike Track
+      .addCase(unlikeTrack.pending, (state, action) => {
+        // Optimistically remove from likedTracks
+        if (action.meta.arg.trackId && state.likedTracks) {
+          state.likedTracks = state.likedTracks.filter(id => id !== action.meta.arg.trackId);
+        }
+      })
+      .addCase(unlikeTrack.fulfilled, (state, action) => {
+        // Ensure it's removed from likedTracks
+        if (action.payload && state.likedTracks) {
+          state.likedTracks = state.likedTracks.filter(id => id !== action.payload);
+        }
+      })
+      .addCase(unlikeTrack.rejected, (state, action) => {
+        // Rollback optimistic update if needed
+        if (action.meta.arg.trackId && !state.likedTracks?.includes(action.meta.arg.trackId)) {
+          state.likedTracks?.push(action.meta.arg.trackId);
+        }
+        state.error = action.payload as string || 'Failed to unlike track';
+      })
+      // Fetch Devices
+      .addCase(fetchDevices.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(fetchDevices.fulfilled, (state, action) => {
+        state.devices = action.payload;
+        state.status = 'succeeded';
+      })
+      .addCase(fetchDevices.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string || 'Failed to fetch devices';
+      })
+      // Transfer Playback
+      .addCase(transferPlayback.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(transferPlayback.fulfilled, (state, action) => {
+        state.selectedDeviceId = action.payload;
+        state.deviceId = action.payload;
+        state.status = 'succeeded';
+      })
+      .addCase(transferPlayback.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string || 'Failed to transfer playback';
       });
   },
 });
@@ -174,5 +292,7 @@ export const playerSlice = createSlice({
 export const { setDevice, updatePlayerState, setVolumeState, setActive } = playerSlice.actions;
 
 export const selectPlayerState = (state: RootState) => state.player;
+export const selectDevices = (state: RootState) => state.player.devices;
+export const selectSelectedDeviceId = (state: RootState) => state.player.selectedDeviceId;
 
 export default playerSlice.reducer;

@@ -44,14 +44,19 @@ export const startPlayback = createAsyncThunk<void, { accessToken: string; conte
     const body: { context_uri?: string; uris?: string[] } = {};
     if (contextUri) body.context_uri = contextUri;
     if (trackUris) body.uris = trackUris;
-    
-    const response = await fetch(`${API_BASE}/play?device_id=${deviceId}`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-        body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
-    });
+
+    const fetchOptions: RequestInit = {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    };
+    if (Object.keys(body).length > 0) {
+      fetchOptions.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(`${API_BASE}/play?device_id=${deviceId}`, fetchOptions);
 
     if (response.status !== 204) return rejectWithValue('Failed to start playback');
+    return;
   }
 );
 
@@ -93,22 +98,18 @@ export const skipToPrevious = createAsyncThunk<void, string, ThunkApiConfig>(
   async (accessToken, { getState, rejectWithValue }) => {
     const { player } = getState();
     if (!player.deviceId) {
-      console.error('Skip to previous: No device ID');
       return rejectWithValue('No device ID');
     }
 
-    console.log('Отправляем запрос на предыдущий трек...');
     const response = await fetch(`${API_BASE}/previous?device_id=${player.deviceId}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
 
     if (response.status !== 204) {
-      console.error('Skip to previous failed:', response.status, response.statusText);
       return rejectWithValue('Failed to skip to previous track');
     }
-    
-    console.log('Успешно переключились на предыдущий трек');
+    return;
   }
 );
 
@@ -118,22 +119,18 @@ export const skipToNext = createAsyncThunk<void, string, ThunkApiConfig>(
   async (accessToken, { getState, rejectWithValue }) => {
     const { player } = getState();
     if (!player.deviceId) {
-      console.error('Skip to next: No device ID');
       return rejectWithValue('No device ID');
     }
 
-    console.log('Отправляем запрос на следующий трек...');
     const response = await fetch(`${API_BASE}/next?device_id=${player.deviceId}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
 
     if (response.status !== 204) {
-      console.error('Skip to next failed:', response.status, response.statusText);
       return rejectWithValue('Failed to skip to next track');
     }
-    
-    console.log('Успешно переключились на следующий трек');
+    return;
   }
 );
 
@@ -154,3 +151,145 @@ export const getMyCurrentPlaybackState = createAsyncThunk<SpotifyApi.CurrentPlay
       return data;
     }
   );
+
+// Play a single track
+export const playTrack = createAsyncThunk<void, { accessToken: string; deviceId: string; trackUri: string }, ThunkApiConfig>(
+  'player/playTrack',
+  async ({ accessToken, deviceId, trackUri }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ uris: [trackUri] }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      if (response.status === 204) {
+        // Refresh player state
+        dispatch(getMyCurrentPlaybackState(accessToken));
+        return;
+      } else {
+        return rejectWithValue('Failed to play track');
+      }
+    } catch (error) {
+      return rejectWithValue('Network error playing track');
+    }
+  }
+);
+
+// Play a playlist (or album) from a given position
+export const playPlaylist = createAsyncThunk<void, { accessToken: string; deviceId: string; playlistUri: string; trackIndex?: number }, ThunkApiConfig>(
+  'player/playPlaylist',
+  async ({ accessToken, deviceId, playlistUri, trackIndex = 0 }, { dispatch, rejectWithValue }) => {
+    try {
+      const requestBody = {
+        context_uri: playlistUri,
+        offset: { position: trackIndex }
+      };
+      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: 'PUT',
+        body: JSON.stringify(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      if (response.status === 204) {
+        // Refresh player state
+        dispatch(getMyCurrentPlaybackState(accessToken));
+        return;
+      } else {
+        return rejectWithValue('Failed to play playlist');
+      }
+    } catch (error) {
+      return rejectWithValue('Network error playing playlist');
+    }
+  }
+);
+
+// Like a track (add to Liked Songs)
+export const likeTrack = createAsyncThunk<
+  string,
+  { accessToken: string; trackId: string },
+  ThunkApiConfig
+>(
+  'player/likeTrack',
+  async ({ accessToken, trackId }, { rejectWithValue }) => {
+    const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${trackId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      return rejectWithValue('Failed to like track');
+    }
+    return trackId;
+  }
+);
+
+// Unlike a track (remove from Liked Songs)
+export const unlikeTrack = createAsyncThunk<
+  string,
+  { accessToken: string; trackId: string },
+  ThunkApiConfig
+>(
+  'player/unlikeTrack',
+  async ({ accessToken, trackId }, { rejectWithValue }) => {
+    const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${trackId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      return rejectWithValue('Failed to unlike track');
+    }
+    return trackId;
+  }
+);
+
+// Fetch available devices
+export const fetchDevices = createAsyncThunk<
+  SpotifyApi.UserDevice[],
+  { accessToken: string },
+  ThunkApiConfig
+>(
+  'player/fetchDevices',
+  async ({ accessToken }, { rejectWithValue }) => {
+    const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+      return rejectWithValue('Failed to fetch devices');
+    }
+    const data = await response.json();
+    return data.devices;
+  }
+);
+
+// Transfer playback to a device
+export const transferPlayback = createAsyncThunk<
+  string,
+  { accessToken: string; deviceId: string },
+  ThunkApiConfig
+>(
+  'player/transferPlayback',
+  async ({ accessToken, deviceId }, { rejectWithValue }) => {
+    const response = await fetch('https://api.spotify.com/v1/me/player', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ device_ids: [deviceId], play: false }),
+    });
+    if (!response.ok) {
+      return rejectWithValue('Failed to transfer playback');
+    }
+    return deviceId;
+  }
+);

@@ -1,3 +1,4 @@
+import React from 'react';
 export default function TestPlaylistPage() {
   return (
     <main className="flex-1 overflow-y-auto p-8">

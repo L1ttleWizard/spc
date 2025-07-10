@@ -12,7 +12,6 @@ export interface PlaylistCardProps {
 
 export default function PlaylistCard({ name, description, imageUrl, id }: PlaylistCardProps) {
   const handleClick = () => {
-    console.log('Playlist clicked:', id, name);
   };
 
   return (
@@ -36,4 +35,4 @@ export default function PlaylistCard({ name, description, imageUrl, id }: Playli
       </div>
     </Link>
   );
-} 
+}

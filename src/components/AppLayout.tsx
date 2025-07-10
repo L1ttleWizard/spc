@@ -13,6 +13,12 @@ interface AppLayoutProps {
   currentFilter?: LibraryFilterType;
 }
 
+interface SidebarProps {
+  items?: LibraryItem[] | null | undefined;
+  currentSort?: LibrarySortType | undefined;
+  currentFilter?: LibraryFilterType | undefined;
+}
+
 export default function AppLayout({ 
   children, 
   sidebarItems, 
@@ -43,9 +49,9 @@ export default function AppLayout({
       <div className="flex flex-1 overflow-hidden">
         {/* Сайдбар */}
         <Sidebar 
-          items={sidebarItems}
-          currentSort={currentSort}
-          currentFilter={currentFilter}
+          items={sidebarItems as SidebarProps['items']}
+          currentSort={currentSort as SidebarProps['currentSort']}
+          currentFilter={currentFilter as SidebarProps['currentFilter']}
         />
         
         {/* Основная область */}

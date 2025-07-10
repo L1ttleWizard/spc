@@ -20,13 +20,13 @@ interface Track {
 interface ContentPageClientProps {
   type: 'playlist' | 'album';
   name: string;
-  imageUrl?: string;
-  owner?: string;
-  artist?: string;
+  imageUrl?: string | undefined;
+  owner?: string | undefined;
+  artist?: string | undefined;
   trackCount: number;
-  followers?: number;
+  followers?: number | undefined;
   tracks: Track[];
-  playlistUri?: string;
+  playlistUri?: string | undefined;
 }
 
 export default function ContentPageClient({
@@ -43,18 +43,6 @@ export default function ContentPageClient({
   const { playTrack, playPlaylist, deviceId } = useSpotifyPlayerContext();
 
   const handlePlayAll = () => {
-    console.log('🎵 handlePlayAll called:', { 
-      type, 
-      name, 
-      tracksLength: tracks.length, 
-      playlistUri, 
-      deviceId,
-      firstTrack: tracks[0] ? {
-        id: tracks[0].id,
-        name: tracks[0].name,
-        uri: tracks[0].uri
-      } : null
-    });
     
     // Check if we have a device
     if (!deviceId) {
@@ -64,11 +52,9 @@ export default function ContentPageClient({
     
     // For playlists (except Liked Songs), play the whole playlist
     if (type === 'playlist' && playlistUri && name !== 'Liked Songs') {
-      console.log('🎵 Playing playlist:', playlistUri);
       playPlaylist(playlistUri);
     } else if (tracks.length > 0 && tracks[0]?.uri) {
       // For albums and Liked Songs, play the first track
-      console.log('🎵 Playing first track:', tracks[0].uri);
       playTrack(tracks[0].uri);
     } else {
       console.warn('⚠️ No valid tracks to play:', { 
@@ -80,16 +66,13 @@ export default function ContentPageClient({
   };
 
   const handleTrackClick = (track: Track, index: number) => {
-    console.log('handleTrackClick called:', { track: track.name, index, trackUri: track.uri, deviceId });
     
     // Для "Мои любимые" воспроизводим треки по отдельности
     if (type === 'playlist' && playlistUri && name !== 'Liked Songs') {
       // Для обычных плейлистов играем с определенной позиции
-      console.log('Playing playlist from position:', index);
       playPlaylist(playlistUri, index);
     } else if (track.uri) {
       // Для альбомов и "Мои любимые" играем конкретный трек
-      console.log('Playing track:', track.uri);
       playTrack(track.uri);
     } else {
       console.warn('Track has no URI:', track);

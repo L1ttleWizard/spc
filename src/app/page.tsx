@@ -2,13 +2,20 @@ import { cookies } from 'next/headers';
 import { getLibraryData, getMainContentData } from '@/data/spotify';
 import AppLayout from '@/components/AppLayout';
 import HomePageClient from './HomePageClient';
-import { LibrarySortType, LibraryFilterType } from '@/types';
+import { LibrarySortType, LibraryFilterType, LibraryItem } from '@/types';
 
 interface PageProps {
   searchParams: {
     sort?: LibrarySortType;
     filter?: LibraryFilterType;
   }
+}
+
+interface AppLayoutProps {
+  children: React.ReactNode;
+  sidebarItems?: LibraryItem[] | null;
+  currentSort?: LibrarySortType | undefined;
+  currentFilter?: LibraryFilterType | undefined;
 }
 
 export default async function Page({ searchParams }: PageProps) {
@@ -25,7 +32,7 @@ export default async function Page({ searchParams }: PageProps) {
 
   const params = await searchParams;
   const sort = params.sort || 'recents';
-  const filter = params.filter;
+  const filter = params.filter || 'playlist';
 
   try {
   const [sidebarData, mainContentData] = await Promise.all([

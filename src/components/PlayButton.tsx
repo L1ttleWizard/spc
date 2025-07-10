@@ -25,7 +25,6 @@ export default function PlayButton({ onClick, size = 'md', className = '' }: Pla
   return (
     <button
       onClick={(e) => {
-        console.log('🎵 PlayButton clicked', { size, hasOnClick: !!onClick });
         if (onClick) {
           onClick(e);
         }

@@ -63,7 +63,7 @@ export default function TrackList({ tracks, onTrackClick }: TrackListProps) {
                 <PlayButton 
                   size="sm" 
                   onClick={(e) => {
-                    e.stopPropagation();
+                    if (e) e.stopPropagation();
                     handleTrackClick(track, idx);
                   }}
                 />

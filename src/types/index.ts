@@ -12,7 +12,7 @@ export interface LibraryItem {
   readonly id: string;
   readonly type: ContentType;
   readonly name: string;
-  readonly imageUrl?: string;
+  readonly imageUrl?: string | undefined;
   readonly subtitle: string;
   readonly creator: string;
   readonly dateAdded: Date | null;
