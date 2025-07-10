@@ -17,7 +17,7 @@ export interface AppError {
   type: ErrorType;
   message: string;
   originalError?: unknown;
-  context?: Record<string, unknown>;
+  context?: Record<string, unknown> | undefined;
 }
 
 export class SpotifyError extends Error {
