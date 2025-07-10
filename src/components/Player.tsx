@@ -15,7 +15,8 @@ export default function Player() {
   const { accessToken } = useSession();
   const dispatch = useDispatch<AppDispatch>();
   const playerState = useSelector(selectPlayerState);
-  const { isActive, isPlaying, currentTrack, volume, position, error } = playerState;
+  const { isActive, isPlaying, currentTrack, volume, position, error, status } = playerState;
+  const isLoading = status === 'loading';
 
   const [currentPosition, setCurrentPosition] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -181,11 +182,16 @@ export default function Player() {
       <div className="flex flex-col items-center gap-2 w-1/2 max-w-2xl">
         <div className="flex items-center gap-4 text-neutral-400">
           <button disabled={!isActive} className="hover:text-white disabled:text-neutral-700 disabled:cursor-not-allowed"><Shuffle size={18} /></button>
-          <button onClick={handleSkipToPrevious} disabled={!isActive} className="hover:text-white disabled:text-neutral-700 disabled:cursor-not-allowed"><SkipBack size={20} /></button>
-          <button onClick={handlePlayPause} disabled={!accessToken} className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 disabled:bg-neutral-600 disabled:cursor-not-allowed">
-            {isPlaying ? <Pause size={18} fill="black" /> : <Play size={18} fill="black" />}
+          <button onClick={handleSkipToPrevious} disabled={!isActive || isLoading} className="hover:text-white disabled:text-neutral-700 disabled:cursor-not-allowed"><SkipBack size={20} /></button>
+          <button onClick={handlePlayPause} disabled={!accessToken || isLoading} className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 disabled:bg-neutral-600 disabled:cursor-not-allowed">
+            {isLoading ? (
+              <svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+              </svg>
+            ) : isPlaying ? <Pause size={18} fill="black" /> : <Play size={18} fill="black" />}
           </button>
-          <button onClick={handleSkipToNext} disabled={!isActive} className="hover:text-white disabled:text-neutral-700 disabled:cursor-not-allowed"><SkipForward size={20} /></button>
+          <button onClick={handleSkipToNext} disabled={!isActive || isLoading} className="hover:text-white disabled:text-neutral-700 disabled:cursor-not-allowed"><SkipForward size={20} /></button>
           <button disabled={!isActive} className="hover:text-white disabled:text-neutral-700 disabled:cursor-not-allowed"><Repeat size={18} /></button>
         </div>
         <div className="flex items-center gap-2 w-full">
@@ -195,7 +201,7 @@ export default function Player() {
               value={displayTrack ? (currentPosition / displayTrack.duration_ms) * 100 : 0} 
               onChange={handleSeekChange} 
               onMouseUp={handleSeekUp} 
-              disabled={!isActive} 
+              disabled={!isActive || isLoading} 
             />
             <span className="text-xs text-neutral-400 w-10">
               {displayTrack ? formatTime(displayTrack.duration_ms) : '0:00'}
@@ -208,7 +214,15 @@ export default function Player() {
         <button className="hover:text-white"><Laptop2 size={18} /></button>
         <div className="flex items-center gap-2 w-24">
           <button className="hover:text-white"><VolumeIcon size={18} /></button>
-          <ProgressBar variant="volume" value={volume * 100} onChange={handleVolumeChange} disabled={!isActive}/>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round(volume * 100)}
+            onChange={handleVolumeChange}
+            className="w-24 h-1 accent-green-500"
+            disabled={!isActive || isLoading}
+          />
         </div>
       </div>
     </footer>
