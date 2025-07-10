@@ -17,9 +17,12 @@ const DevicePicker: React.FC<DevicePickerProps> = ({ onClose }) => {
   const { status, error } = useSelector(selectPlayerState);
 
   useEffect(() => {
-    if (accessToken) {
+    if (!accessToken) return;
+    dispatch(fetchDevices({ accessToken }));
+    const interval = setInterval(() => {
       dispatch(fetchDevices({ accessToken }));
-    }
+    }, 5000);
+    return () => clearInterval(interval);
   }, [accessToken, dispatch]);
 
   const handleSelect = (deviceId: string) => {
