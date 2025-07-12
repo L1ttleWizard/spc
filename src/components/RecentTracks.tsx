@@ -7,6 +7,7 @@ import { likeTrack, unlikeTrack } from '@/redux/thunks/playerThunks';
 import { selectPlayerState } from '@/redux/slices/playerSlice';
 import { useSession } from '@/hooks/useSession';
 import { AppDispatch } from '@/redux/store';
+import Image from 'next/image';
 
 interface RecentTrack {
   id: string;
@@ -65,13 +66,14 @@ export default function RecentTracksRow({ tracks, onPlayTrack }: RecentTracksRow
                     <Heart size={48} fill="white" stroke="white" />
                   </div>
                 ) : (
-                  <img
+                  <Image
                     src={track.album.images?.[0]?.url || '/placeholder-playlist.png'}
                     alt={track.name}
                     className="w-full aspect-square object-cover rounded-md shadow-lg"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/placeholder-playlist.png';
-                    }}
+                    width={300}
+                    height={300}
+                    loading="lazy"
+                    fetchPriority="low"
                   />
                 )}
 

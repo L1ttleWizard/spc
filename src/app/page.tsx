@@ -1,24 +1,15 @@
-import { cookies } from 'next/headers';
 import { getLibraryData, getMainContentData } from '@/data/spotify';
 import AppLayout from '@/components/AppLayout';
 import HomePageClient from './HomePageClient';
-import { LibrarySortType, LibraryFilterType, LibraryItem } from '@/types';
+import { LibrarySortType, LibraryFilterType } from '@/types';
+import { cookies } from 'next/headers';
 
-interface PageProps {
-  searchParams: {
+export default async function Page({ searchParams }: {
+  searchParams: Promise<{
     sort?: LibrarySortType;
     filter?: LibraryFilterType;
-  }
-}
-
-interface AppLayoutProps {
-  children: React.ReactNode;
-  sidebarItems?: LibraryItem[] | null;
-  currentSort?: LibrarySortType | undefined;
-  currentFilter?: LibraryFilterType | undefined;
-}
-
-export default async function Page({ searchParams }: PageProps) {
+  }>
+}) {
   const cookieStore = await cookies();
   const hasToken = cookieStore.has('spotify_access_token');
 

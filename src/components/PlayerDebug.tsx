@@ -18,12 +18,12 @@ export default function PlayerDebug() {
       <h3 className="font-bold mb-2">Отладка плеера:</h3>
       <div className="space-y-1">
         <div>Access Token: {accessToken ? '✅ Есть' : '❌ Нет'}</div>
-        <div>Device ID: {playerState.deviceId || '❌ Нет'}</div>
+        <div>Device ID: {playerState.selectedDeviceId || '❌ Нет'}</div>
         <div>Is Active: {playerState.isActive ? '✅ Да' : '❌ Нет'}</div>
         <div>Is Playing: {playerState.isPlaying ? '✅ Да' : '❌ Нет'}</div>
         <div>Current Track: {playerState.currentTrack ? `✅ ${playerState.currentTrack.name}` : '❌ Нет'}</div>
         <div>Volume: {Math.round(playerState.volume * 100)}%</div>
-        <div>Position: {Math.round(playerState.position / 1000)}s</div>
+        <div>Position: {Math.round(playerState.positionMs / 1000)}s</div>
         <div>Status: {playerState.status}</div>
       </div>
     </div>

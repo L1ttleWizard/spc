@@ -32,7 +32,7 @@ export function useDebouncedCallback<T extends (...args: Parameters<T>) => Retur
   delay: number
 ): (...args: Parameters<T>) => void {
   return useCallback(
-    debounce(callback, delay),
+    (...args: Parameters<T>) => debounce(callback, delay)(...args),
     [callback, delay]
   );
 }

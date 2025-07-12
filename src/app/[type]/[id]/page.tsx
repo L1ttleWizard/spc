@@ -1,8 +1,9 @@
-import { cookies } from 'next/headers';
 import { getPlaylistById, getAlbumById, getLibraryData } from '@/data/spotify';
 import { notFound } from 'next/navigation';
 import ContentPageClient from '@/components/ContentPageClient';
 import AppLayout from '@/components/AppLayout';
+import { cookies } from 'next/headers';
+import { Playlist, Album, Track } from '../../types/spotify';
 
 interface ContentPageProps {
   params: Promise<{ type: string; id: string }>;
@@ -19,7 +20,7 @@ export default async function ContentPage({ params }: ContentPageProps) {
     return notFound();
   }
   
-  let content = null;
+  let content: Playlist | Album | null = null;
   
   // В зависимости от типа загружаем разные данные
   if (type === 'playlist') {
@@ -31,17 +32,17 @@ export default async function ContentPage({ params }: ContentPageProps) {
   if (!content) return notFound();
 
   // Filter and transform tracks to ensure proper format
-  let validTracks: any[] = [];
+  let validTracks: Track[] = [];
   
   if (type === 'playlist') {
     // For playlists, tracks are in tracks.items[].track
-    validTracks = content.tracks?.items
-      ?.filter((item: any) => {
+    validTracks = (content as Playlist).tracks?.items
+      ?.filter((item: { track: Track | null }) => {
         if (!item || !item.track) return false;
         const track = item.track;
         return track.id && track.name && track.artists;
       })
-      ?.map((item: any) => {
+      ?.map((item: { track: Track }) => {
         const track = item.track;
         return {
           ...track,
@@ -51,16 +52,16 @@ export default async function ContentPage({ params }: ContentPageProps) {
       }) || [];
   } else if (type === 'album') {
     // For albums, tracks are in tracks.items directly
-    validTracks = content.tracks?.items
-      ?.filter((track: any) => {
+    validTracks = (content as Album).tracks?.items
+      ?.filter((track: Track) => {
         if (!track) return false;
         return track.id && track.name && track.artists;
       })
-      ?.map((track: any) => {
+      ?.map((track: Track) => {
         return {
           ...track,
           uri: track.uri || `spotify:track:${track.id}`, // Ensure URI exists
-          album: content, // Use album data for album tracks
+          album: content as Album, // Use album data for album tracks
         };
       }) || [];
   }
@@ -75,10 +76,10 @@ export default async function ContentPage({ params }: ContentPageProps) {
   const sidebarData = await getLibraryData();
 
   // Type guards for Playlist and Album
-  function isPlaylist(obj: any): obj is { owner?: { display_name?: string }, followers?: { total?: number } } {
+  function isPlaylist(obj: Playlist | Album): obj is Playlist {
     return obj && typeof obj === 'object' && 'owner' in obj && 'followers' in obj;
   }
-  function isAlbum(obj: any): obj is { artists?: { name?: string }[] } {
+  function isAlbum(obj: Playlist | Album): obj is Album {
     return obj && typeof obj === 'object' && 'artists' in obj;
   }
 
@@ -97,4 +98,4 @@ export default async function ContentPage({ params }: ContentPageProps) {
       />
     </AppLayout>
   );
-} 
+}

@@ -3,8 +3,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { setCookie } from 'cookies-next';
-import { API_URLS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/constants';
+import { API_URLS, ERROR_MESSAGES } from '@/constants';
 import { SPOTIFY_CONFIG } from '@/lib/spotify';
 import { handleError, ErrorType, logError } from '@/lib/error-handler';
 
@@ -42,34 +41,35 @@ async function exchangeCodeForTokens(code: string, redirectUri: string) {
 }
 
 /**
- * Sets secure HTTP-only cookies for tokens
+ * Sets secure HTTP-only cookies for tokens using Next.js native cookie handling
  */
 function setTokenCookies(
   response: NextResponse,
-  request: NextRequest,
   accessToken: string,
   refreshToken: string,
   expiresIn: number
-): void {
+): NextResponse {
   const isProduction = process.env.NODE_ENV === 'production';
-  const cookieOptions = {
-    req: request,
-    res: response,
+  
+  // Set access token cookie
+  response.cookies.set('spotify_access_token', accessToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax' as const,
+    sameSite: 'lax',
     path: '/',
-  };
-
-  setCookie('spotify_access_token', accessToken, {
-    ...cookieOptions,
     maxAge: expiresIn,
   });
 
-  setCookie('spotify_refresh_token', refreshToken, {
-    ...cookieOptions,
+  // Set refresh token cookie
+  response.cookies.set('spotify_refresh_token', refreshToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/',
     maxAge: 60 * 60 * 24 * 30, // 30 days
   });
+
+  return response;
 }
 
 export async function GET(request: NextRequest) {
@@ -117,10 +117,10 @@ export async function GET(request: NextRequest) {
     // Create redirect response
     const response = NextResponse.redirect(baseUrl);
     
-    // Set secure cookies
-    setTokenCookies(response, request, access_token, refresh_token, expires_in);
+    // Set secure cookies using Next.js native method
+    setTokenCookies(response, access_token, refresh_token, expires_in);
 
-    // Log success
+    console.log('✅ Successfully set Spotify tokens in cookies');
     return response;
 
   } catch (err) {

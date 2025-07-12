@@ -1,81 +1,197 @@
 import React from 'react';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
-import configureStore from 'redux-mock-store';
+import { configureStore } from '@reduxjs/toolkit';
 import DevicePicker from '../DevicePicker';
-import '@testing-library/jest-dom';
+import playerReducer from '../../redux/slices/playerSlice';
 
-jest.mock('@/hooks/useSession', () => ({
+// Mock the session hook
+jest.mock('../../hooks/useSession', () => ({
   useSession: () => ({
-    accessToken: 'mock-token',
-    isLoading: false,
-    error: null,
-    refresh: jest.fn(),
-  }),
+    accessToken: 'mock-access-token'
+  })
 }));
 
-const mockStore = configureStore([]);
+// Mock all async thunks used in the playerSlice
+jest.mock('../../redux/thunks/playerThunks', () => ({
+  fetchDevices: { fulfilled: 'fetchDevices/fulfilled' },
+  transferPlayback: { fulfilled: 'transferPlayback/fulfilled' },
+  togglePlayPause: { fulfilled: 'togglePlayPause/fulfilled' },
+  startPlayback: { fulfilled: 'startPlayback/fulfilled' },
+  changeVolume: { fulfilled: 'changeVolume/fulfilled' },
+  seekToPosition: { fulfilled: 'seekToPosition/fulfilled' },
+  getMyCurrentPlaybackState: { pending: 'getMyCurrentPlaybackState/pending', fulfilled: 'getMyCurrentPlaybackState/fulfilled' },
+  skipToPrevious: { fulfilled: 'skipToPrevious/fulfilled' },
+  skipToNext: { fulfilled: 'skipToNext/fulfilled' },
+  playTrack: { fulfilled: 'playTrack/fulfilled' },
+  playPlaylist: { fulfilled: 'playPlaylist/fulfilled' },
+  likeTrack: { fulfilled: 'likeTrack/fulfilled' },
+  unlikeTrack: { fulfilled: 'unlikeTrack/fulfilled' },
+  fetchLikedTracks: { fulfilled: 'fetchLikedTracks/fulfilled' },
+}));
 
-function createDispatchMock() {
-  const promise = Promise.resolve();
-  promise.unwrap = () => Promise.resolve();
-  return jest.fn(() => promise);
-}
+const createMockStore = (initialState = {}) => {
+  return configureStore({
+    reducer: {
+      player: playerReducer
+    },
+    preloadedState: {
+      player: {
+        devices: [],
+        selectedDeviceId: null,
+        status: 'idle',
+        isPlaying: false,
+        currentTrack: null,
+        positionMs: 0,
+        volume: 0.5,
+        isActive: false,
+        likedTracks: [],
+        ...initialState
+      }
+    }
+  });
+};
 
 describe('DevicePicker', () => {
-  let store;
-  const devices = [
-    { id: '1', name: 'Web Player', type: 'Computer', is_active: true },
-    { id: '2', name: 'iPhone', type: 'Smartphone', is_active: false },
-  ];
+  const mockOnClose = jest.fn();
 
   beforeEach(() => {
-    store = mockStore({
-      player: {
-        devices,
-        selectedDeviceId: '1',
-        status: 'succeeded',
-        error: null,
-      },
+    jest.clearAllMocks();
+  });
+
+  it('renders device picker with devices', () => {
+    const mockDevices = [
+      { id: 'device1', name: 'Test Device 1', type: 'Computer', is_active: true },
+      { id: 'device2', name: 'Test Device 2', type: 'Smartphone', is_active: false }
+    ];
+
+    const store = createMockStore({
+      devices: mockDevices,
+      selectedDeviceId: 'device1'
     });
-    store.dispatch = createDispatchMock();
-  });
 
-  it('lists devices and highlights the active one', () => {
     render(
       <Provider store={store}>
-        <DevicePicker onClose={() => {}} />
+        <DevicePicker onClose={mockOnClose} />
       </Provider>
     );
-    const webPlayerLi = screen.getByText('Web Player').closest('li');
-    expect(webPlayerLi).toHaveClass('text-green-400');
-    expect(screen.getByText('iPhone')).toBeInTheDocument();
+
+    expect(screen.getByText('Выберите устройство')).toBeInTheDocument();
+    expect(screen.getByText('Test Device 1')).toBeInTheDocument();
+    expect(screen.getByText('Test Device 2')).toBeInTheDocument();
   });
 
-  it('dispatches transferPlayback on device click', () => {
+  it('highlights active device', () => {
+    const mockDevices = [
+      { id: 'device1', name: 'Test Device 1', type: 'Computer', is_active: true },
+      { id: 'device2', name: 'Test Device 2', type: 'Smartphone', is_active: false }
+    ];
+
+    const store = createMockStore({
+      devices: mockDevices,
+      selectedDeviceId: 'device1'
+    });
+
     render(
       <Provider store={store}>
-        <DevicePicker onClose={() => {}} />
+        <DevicePicker onClose={mockOnClose} />
       </Provider>
     );
-    fireEvent.click(screen.getByText('iPhone'));
-    expect(store.dispatch).toHaveBeenCalled();
+
+    const activeDevice = screen.getByText('Test Device 1').closest('li');
+    expect(activeDevice).toHaveClass('bg-green-700/30');
+  });
+
+  it('dispatches transferPlayback on device click', async () => {
+    const { transferPlayback } = require('../../redux/thunks/playerThunks');
+    const mockDevices = [
+      { id: 'device1', name: 'Test Device 1', type: 'Computer', is_active: true },
+      { id: 'device2', name: 'Test Device 2', type: 'Smartphone', is_active: false }
+    ];
+
+    const store = createMockStore({
+      devices: mockDevices,
+      selectedDeviceId: 'device1'
+    });
+
+    render(
+      <Provider store={store}>
+        <DevicePicker onClose={mockOnClose} />
+      </Provider>
+    );
+
+    const inactiveDevice = screen.getByText('Test Device 2').closest('li');
+    fireEvent.click(inactiveDevice!);
+
+    await waitFor(() => {
+      expect(transferPlayback).toHaveBeenCalledWith({
+        accessToken: 'mock-access-token',
+        deviceId: 'device2'
+      });
+    });
   });
 
   it('auto-refreshes device list every 5 seconds', () => {
+    const { fetchDevices } = require('../../redux/thunks/playerThunks');
     jest.useFakeTimers();
+
+    const store = createMockStore();
+
     render(
       <Provider store={store}>
-        <DevicePicker onClose={() => {}} />
+        <DevicePicker onClose={mockOnClose} />
       </Provider>
     );
+
     // Initial fetch
-    expect(store.dispatch).toHaveBeenCalled();
-    // Advance time by 5 seconds
+    expect(fetchDevices).toHaveBeenCalledWith('mock-access-token');
+
+    // Fast-forward 5 seconds
     jest.advanceTimersByTime(5000);
-    expect(store.dispatch).toHaveBeenCalledTimes(2);
-    jest.advanceTimersByTime(5000);
-    expect(store.dispatch).toHaveBeenCalledTimes(3);
+    expect(fetchDevices).toHaveBeenCalledTimes(2);
+
     jest.useRealTimers();
+  });
+
+  it('closes on escape key', () => {
+    const store = createMockStore();
+
+    render(
+      <Provider store={store}>
+        <DevicePicker onClose={mockOnClose} />
+      </Provider>
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('shows loading state', () => {
+    const store = createMockStore({
+      status: 'loading'
+    });
+
+    render(
+      <Provider store={store}>
+        <DevicePicker onClose={mockOnClose} />
+      </Provider>
+    );
+
+    expect(screen.getByText('Загрузка устройств...')).toBeInTheDocument();
+  });
+
+  it('shows no devices message when no devices available', () => {
+    const store = createMockStore({
+      devices: [],
+      status: 'succeeded'
+    });
+
+    render(
+      <Provider store={store}>
+        <DevicePicker onClose={mockOnClose} />
+      </Provider>
+    );
+
+    expect(screen.getByText('Нет доступных устройств. Откройте Spotify на другом устройстве.')).toBeInTheDocument();
   });
 });

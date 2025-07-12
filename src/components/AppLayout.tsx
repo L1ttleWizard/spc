@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import Player from './Player';
+import { Player } from './Player';
 import { LibraryItem, LibrarySortType, LibraryFilterType } from '@/types';
 
 interface AppLayoutProps {

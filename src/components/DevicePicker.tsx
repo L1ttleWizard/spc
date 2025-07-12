@@ -15,14 +15,14 @@ const DevicePicker: React.FC<DevicePickerProps> = ({ onClose }) => {
   const { accessToken } = useSession();
   const devices = useSelector(selectDevices) || [];
   const selectedDeviceId = useSelector(selectSelectedDeviceId);
-  const { status, error } = useSelector(selectPlayerState);
+  const { status } = useSelector(selectPlayerState);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!accessToken) return;
-    dispatch(fetchDevices({ accessToken }));
+    dispatch(fetchDevices(accessToken));
     const interval = setInterval(() => {
-      dispatch(fetchDevices({ accessToken }));
+      dispatch(fetchDevices(accessToken));
     }, 5000);
     // Focus close button on open
     closeBtnRef.current?.focus();
@@ -46,10 +46,15 @@ const DevicePicker: React.FC<DevicePickerProps> = ({ onClose }) => {
     }
   };
 
-  const handleSelect = (deviceId: string, isActive: boolean) => {
-    if (accessToken && !isActive) {
-      dispatch(transferPlayback({ accessToken, deviceId }));
-      onClose();
+  const handleSelect = async (deviceId: string, isActive: boolean) => {
+    if (accessToken && !isActive && deviceId !== selectedDeviceId) {
+      try {
+        await dispatch(transferPlayback({ accessToken, deviceId })).unwrap();
+        onClose();
+      } catch (error) {
+        console.error('Failed to transfer playback:', error);
+        // You could show a toast notification here
+      }
     }
   };
 
@@ -58,7 +63,6 @@ const DevicePicker: React.FC<DevicePickerProps> = ({ onClose }) => {
       <div className="bg-neutral-900 rounded-lg shadow-lg p-6 w-full max-w-md">
         <h2 className="text-xl font-bold text-white mb-4">Выберите устройство</h2>
         {status === 'loading' && <div className="flex items-center gap-2 text-neutral-400"><span className="animate-spin h-4 w-4 border-2 border-t-transparent border-neutral-400 rounded-full"></span>Загрузка устройств...</div>}
-        {error && <div className="text-red-500 mb-2">{error}</div>}
         <ul className="divide-y divide-neutral-800 mb-4">
           {devices.length === 0 && status !== 'loading' && (
             <li className="text-neutral-400 py-2">Нет доступных устройств. Откройте Spotify на другом устройстве.</li>

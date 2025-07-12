@@ -20,7 +20,7 @@ interface ContentHeaderProps {
   followers?: number | undefined;
   onPlay?: () => void;
   deviceId?: string | null;
-  id: string; // Add id prop for like logic
+  id?: string; // Make id optional since not all content types need it
 }
 
 export default function ContentHeader({
@@ -40,7 +40,28 @@ export default function ContentHeader({
   const { accessToken } = useSession();
   const displayName = owner || artist;
   const canPlay = deviceId && onPlay;
-  const isLiked = likedTracks?.includes(id);
+  
+  // Only show like functionality for tracks (when type is 'content' and we have a valid track ID)
+  const canLike = type === 'content' && id && id !== 'undefined';
+  const isLiked = canLike && likedTracks?.includes(id);
+
+  const handleLikeClick = () => {
+    if (!accessToken || !canLike || !id || id === 'undefined') {
+      console.warn('Cannot like/unlike: missing accessToken, invalid content type, or invalid track ID', {
+        accessToken: !!accessToken,
+        canLike,
+        id,
+        type
+      });
+      return;
+    }
+
+    if (isLiked) {
+      dispatch(unlikeTrack({ accessToken, trackId: id }));
+    } else {
+      dispatch(likeTrack({ accessToken, trackId: id }));
+    }
+  };
 
   return (
     <>
@@ -56,6 +77,8 @@ export default function ContentHeader({
                 width={232}
                 height={232}
                 className="rounded shadow-2xl"
+                priority
+                loading="eager"
               />
             </div>
           )}
@@ -110,20 +133,16 @@ export default function ContentHeader({
             {canPlay ? 'Воспроизвести' : (deviceId ? 'Загрузка...' : 'Подключение...')}
           </button>
           
-          <button className="text-neutral-300 hover:text-white transition-colors"
-            aria-label={isLiked ? 'Unlike' : 'Like'}
-            onClick={() => {
-              if (accessToken) {
-                if (isLiked) {
-                  dispatch(unlikeTrack({ accessToken, trackId: id }));
-                } else {
-                  dispatch(likeTrack({ accessToken, trackId: id }));
-                }
-              }
-            }}
-          >
-            <Heart size={32} fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" />
-          </button>
+          {/* Only show like button for tracks */}
+          {canLike && (
+            <button 
+              className="text-neutral-300 hover:text-white transition-colors"
+              aria-label={isLiked ? 'Unlike' : 'Like'}
+              onClick={handleLikeClick}
+            >
+              <Heart size={32} fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" />
+            </button>
+          )}
           
           <button className="text-neutral-300 hover:text-white transition-colors">
             <MoreHorizontal size={32} />

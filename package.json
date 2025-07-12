@@ -6,7 +6,9 @@
     "dev": "next dev -H 127.0.0.1",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.4",
@@ -35,6 +37,7 @@
     "@types/spotify-web-playback-sdk": "^0.1.19",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
+    "identity-obj-proxy": "^3.0.0",
     "jest": "^30.0.4",
     "jest-environment-jsdom": "^30.0.4",
     "redux-mock-store": "^1.5.5",

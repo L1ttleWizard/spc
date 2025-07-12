@@ -7,14 +7,12 @@ interface HorizontalScrollContainerProps {
   children: ReactNode;
   className?: string;
   showScrollIndicators?: boolean;
-  autoHideScrollbar?: boolean;
 }
 
 export default function HorizontalScrollContainer({
   children,
   className = "",
-  showScrollIndicators = true,
-  autoHideScrollbar = true
+  showScrollIndicators = true
 }: HorizontalScrollContainerProps) {
   const [showLeftIndicator, setShowLeftIndicator] = useState(false);
   const [showRightIndicator, setShowRightIndicator] = useState(false);
@@ -77,18 +75,10 @@ export default function HorizontalScrollContainer({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className={` overflow-hidden flex gap-4  ${
-          autoHideScrollbar 
-            ? 'scrollbar-hide hover:scrollbar-default' 
-            : ''
-        } ${
-          isScrolling 
-            ? 'scrollbar-default' 
-            : 'scrollbar-hide'
-        } transition-all duration-300 ease-out`}
+        className={`flex gap-4 overflow-x-auto w-full scrollbar-hide pl-1 pr-6 overflow-x-clip`}
         style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: isScrolling ? '#52525b' : 'transparent'
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
         }}
       >
         {children}
@@ -101,7 +91,7 @@ export default function HorizontalScrollContainer({
           {showLeftIndicator && (
             <button
               onClick={scrollLeft}
-              className={`absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/80 hover:bg-black text-white rounded-full flex items-center justify-center transition-all duration-300 ease-out shadow-lg backdrop-blur-sm ${
+              className={`absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/90 hover:bg-black text-white rounded-full flex items-center justify-center transition-all duration-300 ease-out shadow-lg backdrop-blur-sm z-30 ${
                 isScrolling ? 'opacity-100 scale-100' : 'opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100'
               }`}
             >
@@ -113,7 +103,7 @@ export default function HorizontalScrollContainer({
           {showRightIndicator && (
             <button
               onClick={scrollRight}
-              className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/80 hover:bg-black text-white rounded-full flex items-center justify-center transition-all duration-300 ease-out shadow-lg backdrop-blur-sm ${
+              className={`absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/90 hover:bg-black text-white rounded-full flex items-center justify-center transition-all duration-300 ease-out shadow-lg backdrop-blur-sm z-30 ${
                 isScrolling ? 'opacity-100 scale-100' : 'opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100'
               }`}
             >
@@ -123,13 +113,7 @@ export default function HorizontalScrollContainer({
         </>
       )}
 
-      {/* Градиентные края для лучшего UX */}
-      {showLeftIndicator && (
-        <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black/20 to-transparent pointer-events-none" />
-      )}
-      {showRightIndicator && (
-        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black/20 to-transparent pointer-events-none" />
-      )}
+      {/* Градиентные края удалены */}
     </div>
   );
 } 

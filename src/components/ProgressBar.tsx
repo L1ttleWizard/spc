@@ -93,7 +93,7 @@ export default function ProgressBar({
 
   return (
     <div 
-      className={`relative w-full ${styles.height} ${styles.track} rounded-full overflow-hidden group transition-all duration-300 ease-out ${className} ${
+      className={`${styles.height} ${styles.track} rounded-full overflow-hidden group transition-all duration-300 ease-out ${className} ${
         shouldShowSlider ? styles.hoverHeight : styles.height
       }`}
       onMouseEnter={() => setIsHovered(true)}
@@ -101,7 +101,7 @@ export default function ProgressBar({
     >
       {/* Заполненная часть с градиентом */}
       <div 
-        className={`absolute top-0 left-0 h-full ${styles.fill} rounded-full transition-all duration-150 ease-out ${
+        className={` h-full ${styles.fill} rounded-full transition-all duration-150 ease-out ${
           isDragging ? 'transition-none' : ''
         } ${
           variant === 'track' 

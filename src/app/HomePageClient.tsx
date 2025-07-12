@@ -42,7 +42,7 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
   const isSpotifyConnected = !!(playlists || albums || newReleases);
 
   return (
-    <div className="p-6 space-y-8 ml-3">
+    <div className="p-6 space-y-8 w-full">
       {/* Отладка плеера */}
       
       
@@ -61,17 +61,18 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
           <div className="space-y-8">
             {newReleases && newReleases.length > 0 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">Новые релизы</h2>
+                <h2 className="text-2xl font-bold mb-4 overflow-x-clip">Новые релизы</h2>
                 <HorizontalScrollContainer>
                 {newReleases.map((album) => (
-                    <Link key={album.id} href={`/album/${album.id}`} className="bg-neutral-800 p-4 rounded-lg hover:bg-neutral-700 transition-all duration-300 hover-lift group cursor-pointer flex-shrink-0 w-48">
+                    <div key={album.id} className="flex-shrink-0 w-48 min-w-0 overflow-visible">
+                      <Link href={`/album/${album.id}`} className="bg-neutral-800 p-4 rounded-lg hover:bg-neutral-700 transition-all duration-300 hover-lift cursor-pointer block">
                       <div className="relative w-full aspect-square mb-3">
                         {album.images?.[0]?.url ? (
                           <Image 
                             src={album.images[0].url} 
                             alt={album.name} 
                             fill
-                            className="object-cover rounded-md transition-transform duration-300 group-hover:scale-105"
+                            className="object-cover rounded-md transition-transform duration-300"
                             sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 16vw"
                           />
                         ) : (
@@ -80,9 +81,10 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
                           </div>
                         )}
                       </div>
-                      <h3 className="font-semibold text-white truncate group-hover:underline">{album.name}</h3>
+                      <h3 className="font-semibold text-white truncate hover:underline">{album.name}</h3>
                       <p className="text-sm text-neutral-400 truncate">{album.artists.map(a => a.name).join(', ')}</p>
-                    </Link>
+                      </Link>
+                    </div>
                 ))}
                 </HorizontalScrollContainer>
               </div>
@@ -90,17 +92,18 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
 
             {playlists && playlists.length > 0 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">Плейлисты</h2>
+                <h2 className="text-2xl font-bold mb-4 overflow-x-clip">Плейлисты</h2>
                 <HorizontalScrollContainer>
                     {playlists.map((playlist) => (
-                    <Link key={playlist.id} href={`/playlist/${playlist.id}`} className="bg-neutral-800 p-4 rounded-lg hover:bg-neutral-700 transition-all duration-300 hover-lift group cursor-pointer flex-shrink-0 w-48">
+                    <div key={playlist.id} className="flex-shrink-0 w-48 min-w-0 overflow-visible">
+                      <Link href={`/playlist/${playlist.id}`} className="bg-neutral-800 p-4 rounded-lg hover:bg-neutral-700 transition-all duration-300 hover-lift cursor-pointer block">
                       <div className="relative w-full aspect-square mb-3">
                         {playlist.images?.[0]?.url ? (
                           <Image 
                             src={playlist.images[0].url} 
                             alt={playlist.name} 
                             fill
-                            className="object-cover rounded-md transition-transform duration-300 group-hover:scale-105"
+                            className="object-cover rounded-md transition-transform duration-300 "
                             sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 16vw"
                           />
                         ) : (
@@ -109,9 +112,10 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
                           </div>
                         )}
                       </div>
-                      <h3 className="font-semibold text-white truncate group-hover:underline">{playlist.name}</h3>
+                      <h3 className="font-semibold text-white truncate  hover:underline">{playlist.name}</h3>
                       <p className="text-sm text-neutral-400 truncate">{playlist.description}</p>
-                    </Link>
+                      </Link>
+                    </div>
                     ))}
                 </HorizontalScrollContainer>
               </div>
@@ -119,17 +123,18 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
 
             {albums && albums.length > 0 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4">Сохраненные альбомы</h2>
+                <h2 className="text-2xl font-bold mb-4 overflow-x-clip">Сохраненные альбомы</h2>
                 <HorizontalScrollContainer>
                     {albums.map(({ album }) => (
-                    <Link key={album.id} href={`/album/${album.id}`} className="bg-neutral-800 p-4 rounded-lg hover:bg-neutral-700 transition-all duration-300 hover-lift group cursor-pointer flex-shrink-0 w-48">
+                    <div key={album.id} className="flex-shrink-0 w-48 min-w-0 overflow-visible">
+                      <Link href={`/album/${album.id}`} className="bg-neutral-800 p-4 rounded-lg hover:bg-neutral-700 transition-all duration-300 hover-lift cursor-pointer block">
                       <div className="relative w-full aspect-square mb-3">
                         {album.images?.[0]?.url ? (
                           <Image 
                             src={album.images[0].url} 
                             alt={album.name} 
                             fill
-                            className="object-cover rounded-md transition-transform duration-300 group-hover:scale-105"
+                            className="object-cover rounded-md transition-transform duration-300"
                             sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 16vw"
                           />
                         ) : (
@@ -138,9 +143,10 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
                           </div>
                         )}
                       </div>
-                      <h3 className="font-semibold text-white truncate group-hover:underline">{album.name}</h3>
+                      <h3 className="font-semibold text-white truncate hover:underline">{album.name}</h3>
                       <p className="text-sm text-neutral-400 truncate">{album.artists.map(a => a.name).join(', ')}</p>
-                    </Link>
+                      </Link>
+                    </div>
                     ))}
                 </HorizontalScrollContainer>
               </div>

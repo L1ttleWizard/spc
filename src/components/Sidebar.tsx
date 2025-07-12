@@ -157,6 +157,8 @@ export default function Sidebar({ items, currentSort, currentFilter }: SidebarPr
                     fill
                     className="object-cover rounded-md"
                     sizes="48px"
+                    loading="lazy"
+                    fetchPriority="low"
                   />
                 ) : (
                   <div className="w-full h-full bg-neutral-700 rounded-md flex items-center justify-center">
