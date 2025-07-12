@@ -5,6 +5,8 @@ interface UserData {
   uid: string;
   email: string | null;
   displayName: string | null;
+  emailVerified: boolean;
+  photoURL: string | null;
 }
 
 interface UserState {
@@ -15,7 +17,7 @@ interface UserState {
 
 const initialState: UserState = {
   user: null,
-  status: 'loading',
+  status: 'idle', // Start with 'idle' instead of 'loading'
   error: null,
 };
 

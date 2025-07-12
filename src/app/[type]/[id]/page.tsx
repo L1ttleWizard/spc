@@ -1,7 +1,7 @@
-import { getPlaylistById, getAlbumById, getLibraryData } from '@/data/spotify';
+import { getPlaylistById, getAlbumById } from '@/data/spotify';
 import { notFound } from 'next/navigation';
 import ContentPageClient from '@/components/ContentPageClient';
-import AppLayout from '@/components/AppLayout';
+import LibraryProvider from '@/components/LibraryProvider';
 import { cookies } from 'next/headers';
 import { Playlist, Album, Track } from '../../types/spotify';
 
@@ -72,8 +72,7 @@ export default async function ContentPage({ params }: ContentPageProps) {
     playlistUri = `spotify:playlist:${id}`;
   }
 
-  // Загружаем данные сайдбара
-  const sidebarData = await getLibraryData();
+
 
   // Type guards for Playlist and Album
   function isPlaylist(obj: Playlist | Album): obj is Playlist {
@@ -84,7 +83,7 @@ export default async function ContentPage({ params }: ContentPageProps) {
   }
 
   return (
-    <AppLayout sidebarItems={sidebarData}>
+    <LibraryProvider>
       <ContentPageClient
         type={type as 'playlist' | 'album'}
         name={content.name}
@@ -96,6 +95,6 @@ export default async function ContentPage({ params }: ContentPageProps) {
         tracks={validTracks}
         playlistUri={playlistUri}
       />
-    </AppLayout>
+    </LibraryProvider>
   );
 }

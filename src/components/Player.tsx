@@ -5,10 +5,14 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useSpotifyPlayerContext } from './SpotifyPlayerProvider';
 import PlayButton from './PlayButton';
 import ProgressBar from './ProgressBar';
+import DevicePicker from './DevicePicker';
+import LikeButton from './LikeButton';
+import RepeatShuffleControls from './RepeatShuffleControls';
 import Image from 'next/image';
 
 import { seekToPosition, changeVolume } from '@/redux/thunks/playerThunks';
 import { useSession } from '@/hooks/useSession';
+import { useSeamlessPlayback } from '@/hooks/useSeamlessPlayback';
 import type { RootState, AppDispatch } from '@/redux/store';
 import type { SimpleTrack } from '@/types';
 
@@ -17,6 +21,8 @@ export function Player() {
   const { accessToken } = useSession();
   const {
     deviceId,
+    currentPosition,
+    trackDuration,
     togglePlay,
     nextTrack,
     previousTrack,
@@ -24,8 +30,11 @@ export function Player() {
     clearError,
   } = useSpotifyPlayerContext();
 
+  // Enable seamless playback for "no repeat" mode
+  useSeamlessPlayback();
+
   // Use Redux state for better synchronization
-  const { isPlaying, currentTrack, isActive, positionMs, volume } = useSelector((state: RootState) => state.player);
+  const { isPlaying, currentTrack, isActive, volume } = useSelector((state: RootState) => state.player);
 
   // Handle volume change
   const handleVolumeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,13 +51,13 @@ export function Player() {
     }
   };
 
-  // Handle seek change
+  // Handle seek change using player's seek method
   const handleSeekChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!currentTrack || !accessToken) return;
     
     const seekPercentage = parseFloat(e.target.value);
-    const newPositionMs = Math.round((seekPercentage / 100) * currentTrack.duration_ms);
-    console.log('🎵 Seek change:', { seekPercentage, newPositionMs, duration: currentTrack.duration_ms });
+    const newPositionMs = Math.round((seekPercentage / 100) * trackDuration);
+    console.log('🎵 Seek change:', { seekPercentage, newPositionMs, duration: trackDuration });
     
     try {
       const result = await dispatch(seekToPosition({ accessToken, positionMs: newPositionMs })).unwrap();
@@ -130,26 +139,19 @@ export function Player() {
               </button>
             </div>
 
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => {/* TODO: Implement device picker modal */}}
-                className="text-gray-400 hover:text-white"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-                </svg>
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={volume}
-                onChange={handleVolumeChange}
-                className="w-20"
-                disabled={!deviceId}
-              />
-            </div>
+                      <div className="flex items-center space-x-4">
+            <DevicePicker />
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={handleVolumeChange}
+              className="w-20"
+              disabled={!deviceId}
+            />
+          </div>
           </div>
           <div className="mt-3">
             <ProgressBar 
@@ -186,6 +188,8 @@ export function Player() {
           </div>
 
           <div className="flex items-center space-x-4">
+            <RepeatShuffleControls />
+            
             <button
               onClick={previousTrack}
               className="text-white hover:text-gray-300"
@@ -207,15 +211,9 @@ export function Player() {
             </button>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => {/* TODO: Implement device picker modal */}}
-              className="text-white hover:text-gray-300"
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-              </svg>
-            </button>
+                            <div className="flex items-center space-x-4">
+            <LikeButton trackId={track.id} size={18} />
+            <DevicePicker />
             <input
               type="range"
               min="0"
@@ -229,7 +227,7 @@ export function Player() {
         </div>
         <div className="mt-3">
           <ProgressBar 
-            value={track.duration_ms > 0 ? (positionMs / track.duration_ms) * 100 : 0} 
+            value={trackDuration > 0 ? (currentPosition / trackDuration) * 100 : 0} 
             onChange={handleSeekChange} 
             variant="track"
           />

@@ -143,35 +143,42 @@ export default function Sidebar({ items, currentSort, currentFilter }: SidebarPr
         </div>
         
         <div className={`mt-2 space-y-1 px-2 overflow-y-auto transition-opacity ${isPending ? 'opacity-50' : 'opacity-100'}`}>
-          {items?.map((item) => (
-            <Link 
-              key={`${item.type}-${item.id}`} 
-              href={`/${item.type}/${item.id}`}
-              className="flex items-center gap-4 p-2 rounded text-sm text-neutral-300 hover:bg-neutral-800 transition-colors"
-            >
-              <div className="w-12 h-12 flex-shrink-0 bg-neutral-700 rounded-md relative">
-                {item.imageUrl ? (
-                  <Image 
-                    src={item.imageUrl} 
-                    alt={item.name} 
-                    fill
-                    className="object-cover rounded-md"
-                    sizes="48px"
-                    loading="lazy"
-                    fetchPriority="low"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-neutral-700 rounded-md flex items-center justify-center">
-                    <span className="text-neutral-400 text-xs">Нет</span>
-                  </div>
-                )}
-              </div>
-              <div className="overflow-hidden">
-                <p className="font-semibold text-white truncate">{item.name}</p>
-                <p className="text-xs capitalize truncate">{item.subtitle}</p>
-              </div>
-            </Link>
-          ))}
+          {items && items.length > 0 ? (
+            items.map((item) => (
+              <Link 
+                key={`${item.type}-${item.id}`} 
+                href={`/${item.type}/${item.id}`}
+                className="flex items-center gap-4 p-2 rounded text-sm text-neutral-300 hover:bg-neutral-800 transition-colors"
+              >
+                <div className="w-12 h-12 flex-shrink-0 bg-neutral-700 rounded-md relative">
+                  {item.imageUrl ? (
+                    <Image 
+                      src={item.imageUrl} 
+                      alt={item.name} 
+                      fill
+                      className="object-cover rounded-md"
+                      sizes="48px"
+                      loading="lazy"
+                      fetchPriority="low"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-neutral-700 rounded-md flex items-center justify-center">
+                      <span className="text-neutral-400 text-xs">Нет</span>
+                    </div>
+                  )}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="font-semibold text-white truncate">{item.name}</p>
+                  <p className="text-xs capitalize truncate">{item.subtitle}</p>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="p-4 text-center">
+              <p className="text-neutral-400 text-sm">No library items found</p>
+              <p className="text-neutral-500 text-xs mt-1">Log in to see your playlists and albums</p>
+            </div>
+          )}
         </div>
       </div>
     </aside>

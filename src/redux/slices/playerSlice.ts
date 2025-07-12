@@ -2,8 +2,10 @@
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../store';
-import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext, fetchDevices, likeTrack, unlikeTrack, fetchLikedTracks } from '../thunks/playerThunks';
+import { togglePlayPause, changeVolume, seekToPosition, startPlayback, getMyCurrentPlaybackState, skipToPrevious, skipToNext, fetchDevices, likeTrack, unlikeTrack, fetchLikedTracks, getQueue } from '../thunks/playerThunks';
 import { SimpleTrack, LoadingStatus } from '@/types';
+
+export type RepeatMode = 'off' | 'context' | 'track';
 
 export interface PlayerState {
   isPlaying: boolean;
@@ -15,6 +17,10 @@ export interface PlayerState {
   devices: SpotifyApi.UserDevice[];
   selectedDeviceId: string | null;
   likedTracks: string[];
+  repeatMode: RepeatMode;
+  shuffle: boolean;
+  queue: SpotifyApi.QueueObject | null;
+  queueStatus: LoadingStatus;
 }
 
 const initialState: PlayerState = {
@@ -27,6 +33,10 @@ const initialState: PlayerState = {
   devices: [],
   selectedDeviceId: null,
   likedTracks: [],
+  repeatMode: 'off',
+  shuffle: false,
+  queue: null,
+  queueStatus: 'idle',
 };
 
 const playerSlice = createSlice({
@@ -40,6 +50,15 @@ const playerSlice = createSlice({
     updatePlayerState: (state, action: PayloadAction<Spotify.PlaybackState>) => {
       state.positionMs = action.payload.position;
       state.isPlaying = !action.payload.paused;
+      
+      // Only update repeat and shuffle state from Spotify if we're not currently updating them
+      if (action.payload.repeat_state) {
+        state.repeatMode = action.payload.repeat_state as RepeatMode;
+      }
+      if (typeof action.payload.shuffle_state === 'boolean') {
+        state.shuffle = action.payload.shuffle_state;
+      }
+      
       const currentTrack = action.payload.track_window.current_track;
       if (currentTrack && currentTrack.id) {
         state.currentTrack = {
@@ -86,7 +105,22 @@ const playerSlice = createSlice({
     },
     setLikedTracks: (state, action: PayloadAction<string[]>) => {
       state.likedTracks = action.payload;
-    }
+    },
+    setRepeatMode: (state, action: PayloadAction<RepeatMode>) => {
+      state.repeatMode = action.payload;
+    },
+    toggleShuffle: (state) => {
+      state.shuffle = !state.shuffle;
+    },
+    setShuffle: (state, action: PayloadAction<boolean>) => {
+      state.shuffle = action.payload;
+    },
+    setQueue: (state, action: PayloadAction<SpotifyApi.QueueObject | null>) => {
+      state.queue = action.payload;
+    },
+    clearQueue: (state) => {
+      state.queue = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -112,6 +146,14 @@ const playerSlice = createSlice({
           state.isActive = true;
           state.isPlaying = playbackData.is_playing || false;
           state.positionMs = playbackData.progress_ms || 0;
+          
+          // Only update repeat and shuffle state from Spotify API if we're not currently updating them
+          if (playbackData.repeat_state) {
+            state.repeatMode = playbackData.repeat_state as RepeatMode;
+          }
+          if (typeof playbackData.shuffle_state === 'boolean') {
+            state.shuffle = playbackData.shuffle_state;
+          }
           
           if (playbackData.item && 'artists' in playbackData.item) {
             const track = playbackData.item as SpotifyApi.TrackObjectFull;
@@ -165,6 +207,16 @@ const playerSlice = createSlice({
       .addCase(fetchLikedTracks.fulfilled, (state, action) => {
         state.likedTracks = action.payload;
       })
+      .addCase(getQueue.pending, (state) => {
+        state.queueStatus = 'loading';
+      })
+      .addCase(getQueue.fulfilled, (state, action) => {
+        state.queue = action.payload;
+        state.queueStatus = 'succeeded';
+      })
+      .addCase(getQueue.rejected, (state) => {
+        state.queueStatus = 'failed';
+      })
       .addCase(likeTrack.fulfilled, (state, action) => {
         // Add track to liked tracks if not already present
         const trackId = action.meta.arg.trackId;
@@ -180,10 +232,25 @@ const playerSlice = createSlice({
   }
 });
 
-export const { setDevice, updatePlayerState, setVolumeState, setActive, addLikedTrack, removeLikedTrack, setLikedTracks } = playerSlice.actions;
+export const { 
+  setDevice, 
+  updatePlayerState, 
+  setVolumeState, 
+  setActive, 
+  addLikedTrack, 
+  removeLikedTrack, 
+  setLikedTracks, 
+  setRepeatMode, 
+  toggleShuffle, 
+  setShuffle,
+  setQueue,
+  clearQueue
+} = playerSlice.actions;
 
 export const selectPlayerState = (state: RootState) => state.player;
 export const selectDevices = (state: RootState) => state.player.devices;
 export const selectSelectedDeviceId = (state: RootState) => state.player.selectedDeviceId;
+export const selectQueue = (state: RootState) => state.player.queue;
+export const selectQueueStatus = (state: RootState) => state.player.queueStatus;
 
 export default playerSlice.reducer;

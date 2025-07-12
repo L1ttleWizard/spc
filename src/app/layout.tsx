@@ -4,8 +4,10 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { ReduxProvider } from '@/redux/reduxProvider';
 import { AuthInitializer } from '@/components/AuthInitializer';
+import { SessionProvider } from '@/components/SessionProvider';
 import { SpotifyPlayerProvider } from '@/components/SpotifyPlayerProvider';
 import { Player } from '@/components/Player';
+import { PlayerDebug } from '@/components/PlayerDebug';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -24,10 +26,15 @@ export default function RootLayout({
       <body className={inter.className}>
         <ReduxProvider>
           <AuthInitializer>
-            <SpotifyPlayerProvider>
-              {children}
-              <Player />
-            </SpotifyPlayerProvider>
+            <SessionProvider>
+              <SpotifyPlayerProvider>
+                {children}
+                <PlayerDebug />
+                <div className="h-24 flex-shrink-0">
+                  <Player />
+                </div>
+              </SpotifyPlayerProvider>
+            </SessionProvider>
           </AuthInitializer>
         </ReduxProvider>
       </body>

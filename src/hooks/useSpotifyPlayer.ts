@@ -13,7 +13,9 @@ import {
   togglePlayPause,
   skipToNext,
   skipToPrevious,
-  changeVolume
+  changeVolume,
+  fetchDevices,
+  getQueue
 } from '@/redux/thunks/playerThunks';
 import { AppDispatch, RootState } from '@/redux/store';
 
@@ -38,9 +40,7 @@ interface SpotifyPlayer {
 declare global {
   interface Window {
     onSpotifyWebPlaybackSDKReady: () => void;
-    Spotify: typeof Spotify & {
-      Player: new (config: unknown) => SpotifyPlayer;
-    };
+    __spotifyScriptLoading?: boolean;
   }
 }
 
@@ -51,13 +51,36 @@ export function useSpotifyPlayer() {
   const [player, setPlayer] = useState<SpotifyPlayer | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<unknown>(null);
-  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [currentPosition, setCurrentPosition] = useState(0);
+  const [trackDuration, setTrackDuration] = useState(0);
+
   const [isInitializing, setIsInitializing] = useState(false);
   const [sdkLoaded, setSdkLoaded] = useState(false);
   const initializationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const playbackStateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const playerInstanceRef = useRef<SpotifyPlayer | null>(null);
+  const scriptElementRef = useRef<HTMLScriptElement | null>(null);
   const hasInitializedRef = useRef(false);
+
+  // Fetch available devices
+  const fetchAvailableDevices = useCallback(async () => {
+    if (!accessToken) return;
+    
+    try {
+      console.log('📱 Fetching available devices...');
+      await dispatch(fetchDevices(accessToken)).unwrap();
+    } catch (error) {
+      console.warn('⚠️ Error fetching devices:', error);
+    }
+  }, [accessToken, dispatch]);
+
+  // Update seek position from player state
+  const updateSeekPosition = useCallback((state: Spotify.PlaybackState) => {
+    if (state && state.track_window && state.track_window.current_track) {
+      setCurrentPosition(state.position);
+      setTrackDuration(state.track_window.current_track.duration_ms);
+    }
+  }, []);
 
   const initializePlayer = useCallback(() => {
     console.log('🎵 Initializing Spotify player:', { 
@@ -84,10 +107,16 @@ export function useSpotifyPlayer() {
       clearTimeout(initializationTimeoutRef.current);
     }
 
-    // Check if script is already loaded
+    // Check if script is already loaded or loading
+    if (window.__spotifyScriptLoading) {
+      console.log('📦 Spotify Web Playback SDK already loading, waiting...');
+      return;
+    }
+    
     const existingScript = document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]');
     if (existingScript) {
       console.log('📦 Spotify Web Playback SDK already loaded');
+      scriptElementRef.current = existingScript as HTMLScriptElement;
       if (sdkLoaded) {
         initializeSpotifyPlayer();
       } else {
@@ -105,9 +134,12 @@ export function useSpotifyPlayer() {
       }
     } else {
       console.log('📦 Loading Spotify Web Playback SDK...');
+      window.__spotifyScriptLoading = true;
+      
       // Set up global callback before loading script
       window.onSpotifyWebPlaybackSDKReady = () => {
         console.log('✅ Spotify Web Playback SDK ready');
+        window.__spotifyScriptLoading = false;
         setSdkLoaded(true);
         initializeSpotifyPlayer();
       };
@@ -115,6 +147,7 @@ export function useSpotifyPlayer() {
       const script = document.createElement('script');
       script.src = 'https://sdk.scdn.co/spotify-player.js';
       script.async = true;
+      scriptElementRef.current = script;
 
       script.onload = () => {
         console.log('📦 Spotify Web Playback SDK script loaded');
@@ -123,8 +156,10 @@ export function useSpotifyPlayer() {
 
       script.onerror = () => {
         console.error('❌ Failed to load Spotify Web Playback SDK');
+        window.__spotifyScriptLoading = false;
         setIsInitializing(false);
         setSdkLoaded(false);
+        scriptElementRef.current = null;
       };
 
       document.body.appendChild(script);
@@ -192,6 +227,8 @@ export function useSpotifyPlayer() {
           console.log('🎵 Player state changed:', !!state);
           if (!state) {
             dispatch(setActive(false));
+            setCurrentPosition(0);
+            setTrackDuration(0);
             return;
           }
 
@@ -199,13 +236,29 @@ export function useSpotifyPlayer() {
           setCurrentTrack(typedState.track_window.current_track);
           setIsActive(true);
           dispatch(setActive(true));
-          dispatch(updatePlayerState(typedState));
+          
+          // Update seek position
+          updateSeekPosition(typedState);
+          
+          // Fetch devices when player becomes active
+          if (!isActive) {
+            fetchAvailableDevices();
+          }
+          
+          // Only update Redux state for significant changes to avoid overriding button states
+          // Check if the track has changed or if we're not in the middle of a user action
+          const currentTrackId = typedState.track_window.current_track?.id;
+          const shouldUpdateRedux = !typedState.paused || 
+            (currentTrackId && (!currentTrack || (currentTrack as Spotify.Track)?.id !== currentTrackId));
+          
+          if (shouldUpdateRedux) {
+            dispatch(updatePlayerState(typedState));
+          }
         }) as (data: unknown) => void);
 
         // Ready
         player.addListener('ready', (({ device_id }: { device_id: string }) => {
           console.log('✅ Ready with Device ID', device_id);
-          setDeviceId(device_id);
           setPlayer(player);
           setIsInitializing(false);
           hasInitializedRef.current = true;
@@ -214,6 +267,9 @@ export function useSpotifyPlayer() {
           if (device_id !== currentDeviceId) {
             dispatch(setDevice({ device_id, volume: 0.5 }));
           }
+
+          // Fetch initial devices immediately
+          fetchAvailableDevices();
 
           // Debounce the playback state fetch to avoid rate limiting
           if (playbackStateTimeoutRef.current) {
@@ -257,7 +313,7 @@ export function useSpotifyPlayer() {
         setIsInitializing(false);
       }
     }
-  }, [accessToken, dispatch, isInitializing, sdkLoaded, currentDeviceId]);
+  }, [accessToken, dispatch, isInitializing, sdkLoaded, currentDeviceId, fetchAvailableDevices, updateSeekPosition, isActive]);
 
   const playTrack = useCallback((trackUri: string) => {
     console.log('🎵 playTrack called:', { trackUri, deviceId: !!currentDeviceId, accessToken: !!accessToken });
@@ -292,7 +348,7 @@ export function useSpotifyPlayer() {
     }
 
     console.log('🎵 Dispatching playPlaylist thunk');
-    dispatch(playPlaylistThunk({ accessToken, deviceId: currentDeviceId, playlistUri, trackIndex }));
+    dispatch(playPlaylistThunk({ accessToken, deviceId: currentDeviceId, playlistUri }));
   }, [currentDeviceId, accessToken, dispatch]);
 
   const togglePlay = useCallback(async () => {
@@ -304,7 +360,7 @@ export function useSpotifyPlayer() {
     
     try {
       console.log('🎵 Dispatching togglePlayPause thunk');
-      await dispatch(togglePlayPause(accessToken)).unwrap();
+      await dispatch(togglePlayPause({ accessToken })).unwrap();
     } catch (error) {
       console.warn('⚠️ Error toggling play:', error);
     }
@@ -317,7 +373,7 @@ export function useSpotifyPlayer() {
     }
     
     try {
-      await dispatch(togglePlayPause(accessToken)).unwrap();
+      await dispatch(togglePlayPause({ accessToken })).unwrap();
     } catch (error) {
       console.warn('⚠️ Error pausing:', error);
     }
@@ -330,7 +386,7 @@ export function useSpotifyPlayer() {
     }
     
     try {
-      await dispatch(togglePlayPause(accessToken)).unwrap();
+      await dispatch(togglePlayPause({ accessToken })).unwrap();
     } catch (error) {
       console.warn('⚠️ Error resuming:', error);
     }
@@ -345,11 +401,11 @@ export function useSpotifyPlayer() {
     
     try {
       console.log('🎵 Dispatching skipToNext thunk');
-      await dispatch(skipToNext(accessToken)).unwrap();
+      await dispatch(skipToNext({ accessToken, ...(currentDeviceId && { deviceId: currentDeviceId }) })).unwrap();
     } catch (error) {
       console.warn('⚠️ Error skipping to next track:', error);
     }
-  }, [accessToken, dispatch]);
+  }, [accessToken, currentDeviceId, dispatch]);
 
   const previousTrack = useCallback(async () => {
     console.log('🎵 previousTrack called');
@@ -360,11 +416,11 @@ export function useSpotifyPlayer() {
     
     try {
       console.log('🎵 Dispatching skipToPrevious thunk');
-      await dispatch(skipToPrevious(accessToken)).unwrap();
+      await dispatch(skipToPrevious({ accessToken, deviceId: currentDeviceId })).unwrap();
     } catch (error) {
       console.warn('⚠️ Error skipping to previous track:', error);
     }
-  }, [accessToken, dispatch]);
+  }, [accessToken, currentDeviceId, dispatch]);
 
   const setVolume = useCallback(async (volume: number) => {
     console.log('🎵 setVolume called:', volume);
@@ -375,9 +431,59 @@ export function useSpotifyPlayer() {
     
     try {
       console.log('🎵 Dispatching changeVolume thunk');
-      await dispatch(changeVolume({ accessToken, volumePercent: Math.round(volume * 100) })).unwrap();
+      await dispatch(changeVolume({ accessToken, deviceId: currentDeviceId, volume })).unwrap();
     } catch (error) {
       console.warn('⚠️ Error setting volume:', error);
+    }
+  }, [accessToken, currentDeviceId, dispatch]);
+
+  // Fetch queue from Spotify API
+  const fetchQueue = useCallback(async () => {
+    if (!accessToken) {
+      console.warn('❌ No access token for fetchQueue');
+      return;
+    }
+    
+    try {
+      console.log('🎵 Fetching queue from Spotify API...');
+      await dispatch(getQueue({ accessToken, deviceId: currentDeviceId || undefined })).unwrap();
+    } catch (error) {
+      console.warn('⚠️ Error fetching queue:', error);
+    }
+  }, [accessToken, currentDeviceId, dispatch]);
+
+  const transferPlayback = useCallback(async (deviceId: string) => {
+    console.log('🎵 transferPlayback called:', deviceId);
+    if (!accessToken) {
+      console.warn('❌ No access token for transferPlayback');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`https://api.spotify.com/v1/me/player`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          device_ids: [deviceId],
+          play: false, // Don't start playing automatically
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to transfer playback: ${response.status}`);
+      }
+
+      console.log('✅ Playback transferred successfully to device:', deviceId);
+      
+      // Update the device in Redux store
+      dispatch(setDevice({ device_id: deviceId, volume: 0.5 }));
+      
+    } catch (error) {
+      console.error('❌ Error transferring playback:', error);
+      throw error;
     }
   }, [accessToken, dispatch]);
 
@@ -391,19 +497,58 @@ export function useSpotifyPlayer() {
       initializePlayer();
     }
 
-    // Set up periodic refresh of playback state
+    // Set up periodic refresh of playback state and devices
     let refreshInterval: NodeJS.Timeout | null = null;
-    if (accessToken && currentDeviceId) {
+    let deviceRefreshInterval: NodeJS.Timeout | null = null;
+    let seekUpdateInterval: NodeJS.Timeout | null = null;
+    
+    if (accessToken && currentDeviceId && isActive) {
+      // Refresh playback state less frequently to avoid overriding button states
       refreshInterval = setInterval(() => {
         console.log('🔄 Refreshing playback state...');
         dispatch(getMyCurrentPlaybackState(accessToken));
-      }, 5000); // Refresh every 5 seconds
+      }, 1000); // Refresh every 1 second
+      
+      // Fetch queue when player becomes active
+      fetchQueue();
+      
+      // Refresh devices more frequently when player is active
+      deviceRefreshInterval = setInterval(() => {
+        console.log('📱 Refreshing devices...');
+        fetchAvailableDevices();
+      }, 2000); // Refresh devices every 2 seconds
+      
+      // Update seek position more frequently for smooth progress bar
+      seekUpdateInterval = setInterval(() => {
+        if (playerInstanceRef.current) {
+          playerInstanceRef.current.getCurrentState().then((state) => {
+            if (state) {
+              const typedState = state as Spotify.PlaybackState;
+              updateSeekPosition(typedState);
+            }
+          }).catch((error) => {
+            console.warn('⚠️ Error getting current state for seek update:', error);
+          });
+        }
+      }, 1000); // Update seek position every 1 second
+    } else if (accessToken && currentDeviceId) {
+      // Still fetch devices even when not active, but less frequently
+      deviceRefreshInterval = setInterval(() => {
+        console.log('📱 Refreshing devices (inactive)...');
+        fetchAvailableDevices();
+      }, 1000); // Refresh devices every 10 seconds when inactive
     }
 
     return () => {
-      // Clean up refresh interval
+      // Clean up refresh intervals
       if (refreshInterval) {
         clearInterval(refreshInterval);
+      }
+      if (deviceRefreshInterval) {
+        clearInterval(deviceRefreshInterval);
+      }
+      if (seekUpdateInterval) {
+        clearInterval(seekUpdateInterval);
       }
       
       // Clean up player instance
@@ -417,6 +562,20 @@ export function useSpotifyPlayer() {
         playerInstanceRef.current = null;
       }
       
+      // Clean up script element
+      if (scriptElementRef.current && scriptElementRef.current.parentNode) {
+        try {
+          console.log('🧹 Cleaning up script element on unmount');
+          scriptElementRef.current.parentNode.removeChild(scriptElementRef.current);
+        } catch (error) {
+          console.warn('⚠️ Error removing script element:', error);
+        }
+        scriptElementRef.current = null;
+      }
+      
+      // Reset loading flag
+      window.__spotifyScriptLoading = false;
+      
       // Clean up timeouts
       if (initializationTimeoutRef.current) {
         clearTimeout(initializationTimeoutRef.current);
@@ -425,13 +584,15 @@ export function useSpotifyPlayer() {
         clearTimeout(playbackStateTimeoutRef.current);
       }
     };
-  }, [accessToken, currentDeviceId, initializePlayer, dispatch]);
+  }, [accessToken, currentDeviceId, initializePlayer, dispatch, fetchAvailableDevices, updateSeekPosition, isActive, fetchQueue]);
 
   return {
     player,
     isActive,
     currentTrack,
     deviceId: currentDeviceId,
+    currentPosition,
+    trackDuration,
     playTrack,
     playPlaylist,
     togglePlay,
@@ -440,5 +601,7 @@ export function useSpotifyPlayer() {
     nextTrack,
     previousTrack,
     setVolume,
+    transferPlayback,
+    fetchQueue,
   };
 }

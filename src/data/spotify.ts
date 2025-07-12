@@ -2,11 +2,10 @@
  * Spotify data fetching and caching utilities
  */
 
-import { executeSpotifyApiCall, getSpotifyServerApi } from '@/lib/spotify-server';
+import { getSpotifyServerApi, fetchWithRetry } from '@/lib/spotify-server';
 import { LibraryItem, LibrarySortType, LibraryFilterType, CacheEntry } from '@/types';
-import { CACHE_CONFIG, DEFAULT_IMAGES } from '@/constants';
-import { handleError } from '@/lib/error-handler';
-import { getImageUrl, getArtistNames } from '@/lib/utils';
+import { CACHE_CONFIG, DEFAULT_IMAGES, TIMEOUT_CONFIG, RATE_LIMIT } from '@/constants';
+import { getArtistNames } from '@/lib/utils';
 
 // In-memory cache with proper typing
 const cache = new Map<string, CacheEntry<unknown>>();
@@ -40,32 +39,55 @@ function setCachedData<T>(key: string, data: T): void {
 }
 
 /**
- * Clears all cache entries
+ * Helper function to check if a promise is fulfilled
  */
-export function clearCache(): void {
-  cache.clear();
+function isFulfilled<T>(result: PromiseSettledResult<T>): result is PromiseFulfilledResult<T> {
+  return result.status === 'fulfilled';
 }
 
 /**
- * Clears cache entries older than specified duration
+ * Enhanced error handling for Spotify API calls
  */
-export function cleanExpiredCache(): void {
-  const now = Date.now();
-  for (const [key, entry] of cache.entries()) {
-    if (now - entry.timestamp >= CACHE_CONFIG.DURATION) {
-      cache.delete(key);
+async function handleSpotifyApiCall<T>(
+  apiCall: () => Promise<T>,
+  context: string
+): Promise<T | null> {
+  try {
+    return await apiCall();
+  } catch (error) {
+    console.error(`❌ Error in ${context}:`, error);
+    
+    // Handle specific error types
+    if (error instanceof Error) {
+      if (error.message.includes('ETIMEDOUT') || error.message.includes('timeout')) {
+        console.warn(`⚠️ Timeout in ${context}, returning null`);
+        return null;
+      }
+      
+      if (error.message.includes('429') || error.message.includes('rate limit')) {
+        console.warn(`⚠️ Rate limited in ${context}, returning null`);
+        return null;
+      }
+      
+      if (error.message.includes('401') || error.message.includes('unauthorized')) {
+        console.warn(`⚠️ Authentication error in ${context}, returning null`);
+        return null;
+      }
     }
+    
+    return null;
   }
 }
 
 /**
- * Fetches user's library data (playlists and albums)
+ * Fetches user library with enhanced error handling
  */
-export async function getLibraryData(
-  sort?: LibrarySortType,
-  filter?: LibraryFilterType
-): Promise<LibraryItem[] | null> {
-  const cacheKey = `library_${sort || 'recents'}_${filter || 'all'}`;
+export async function getUserLibrary(
+  sort: LibrarySortType = 'recents',
+  filter?: LibraryFilterType,
+  limit: number = CACHE_CONFIG.DEFAULT_LIMIT
+): Promise<LibraryItem[]> {
+  const cacheKey = `library_${sort}_${filter || 'all'}_${limit}`;
   const cached = getCachedData<LibraryItem[]>(cacheKey);
   
   if (cached) {
@@ -73,131 +95,163 @@ export async function getLibraryData(
   }
 
   try {
-    return await executeSpotifyApiCall(async (api) => {
-      // Fetch data in parallel with error handling
-      const [
-        playlistsResult,
-        albumsResult,
-        recentlyPlayedResult,
-      ] = await Promise.allSettled([
-        api.getUserPlaylists({ limit: CACHE_CONFIG.DEFAULT_LIMIT }),
-        api.getMySavedAlbums({ limit: CACHE_CONFIG.DEFAULT_LIMIT }),
-        api.getMyRecentlyPlayedTracks({ limit: 20 })
-      ]);
+    const spotifyApi = await getSpotifyServerApi();
+    const items: LibraryItem[] = [];
 
-      // Get liked tracks for Liked Songs playlist
-      const likedTracksResult = await api.getMySavedTracks({ limit: 50 });
-      const allLikedTracks = likedTracksResult.body.items.slice(0, 100);
-
-      const lastPlayedMap = new Map<string, Date>();
-      const likedSongsTrackIds = new Set<string>();
-
-      // Add all liked track IDs
-      allLikedTracks.forEach(item => likedSongsTrackIds.add(item.track.id));
-
-      // Helper function to check if result is fulfilled
-      const isFulfilled = <T>(result: PromiseSettledResult<T>): result is PromiseFulfilledResult<T> => {
-        return result.status === 'fulfilled';
-      };
-
-      if (isFulfilled(recentlyPlayedResult)) {
-        recentlyPlayedResult.value.body.items.forEach(item => {
-          if (likedSongsTrackIds.has(item.track.id)) {
-            const existingDate = lastPlayedMap.get('liked-songs');
-            const newDate = new Date(item.played_at);
-            if (!existingDate || newDate > existingDate) {
-              lastPlayedMap.set('liked-songs', newDate);
-            }
-          }
-          if (item.context?.uri) {
-            const contextId = item.context.uri.split(':').pop();
-            if (contextId && !lastPlayedMap.has(contextId)) {
-              lastPlayedMap.set(contextId, new Date(item.played_at));
-            }
-          }
-        });
-      }
-
-      let libraryItems: LibraryItem[] = [];
-
-      // Add Liked Songs
-      libraryItems.push({
-        id: 'liked-songs',
-        type: 'playlist',
-        name: 'Liked Songs',
-        imageUrl: DEFAULT_IMAGES.LIKED_SONGS,
-        subtitle: `Playlist • ${allLikedTracks.length} songs`,
-        creator: 'You',
-        dateAdded: null,
-        lastPlayed: lastPlayedMap.get('liked-songs') || null,
-      });
-
-      if (isFulfilled(playlistsResult)) {
-        playlistsResult.value.body.items.forEach(p => {
-          libraryItems.push({
-            id: p.id,
-            type: 'playlist',
-            name: p.name,
-            imageUrl: getImageUrl(p.images),
-            subtitle: `Playlist • ${p.owner.display_name || 'Unknown'}`,
-            creator: p.owner.display_name || 'Unknown',
-            dateAdded: null,
-            lastPlayed: lastPlayedMap.get(p.id) || null
-          });
-        });
-      }
-
-      if (isFulfilled(albumsResult)) {
-        albumsResult.value.body.items.forEach(a => {
-          libraryItems.push({
-            id: a.album.id,
-            type: 'album',
-            name: a.album.name,
-            imageUrl: getImageUrl(a.album.images),
-            subtitle: `Album • ${getArtistNames(a.album.artists)}`,
-            creator: a.album.artists[0]?.name || 'Unknown',
-            dateAdded: new Date(a.added_at),
-            lastPlayed: lastPlayedMap.get(a.album.id) || null
-          });
-        });
-      }
-
-      if (filter) {
-        libraryItems = libraryItems.filter(item => item.type === filter);
-      }
+    if (!filter || filter === 'playlist') {
+      const playlistsResult = await handleSpotifyApiCall(
+        () => spotifyApi.getUserPlaylists({ limit }),
+        'getUserPlaylists'
+      );
       
-      const sortType = sort || 'recents';
-      switch (sortType) {
-        case 'alpha':
-          libraryItems.sort((a, b) => a.name.localeCompare(b.name));
-          break;
-        case 'added':
-          libraryItems.sort((a, b) => (b.dateAdded?.getTime() || 0) - (a.dateAdded?.getTime() || 0));
-          break;
-        case 'creator':
-          libraryItems.sort((a, b) => a.creator.localeCompare(b.creator));
-          break;
-        case 'recents':
-        default:
-          libraryItems.sort((a, b) => (b.lastPlayed?.getTime() || 0) - (a.lastPlayed?.getTime() || 0));
-          break;
+      if (playlistsResult) {
+        items.push(...playlistsResult.body.items.map(playlist => ({
+          id: playlist.id,
+          name: playlist.name,
+          type: 'playlist' as const,
+          imageUrl: playlist.images?.[0]?.url || DEFAULT_IMAGES.PLACEHOLDER,
+          subtitle: `Playlist • ${playlist.owner?.display_name || 'Unknown'}`,
+          creator: playlist.owner?.display_name || 'Unknown',
+          dateAdded: null,
+          lastPlayed: null,
+        })));
       }
+    }
 
-      setCachedData(cacheKey, libraryItems);
-      return libraryItems;
-    }, { sort, filter });
+    if (!filter || filter === 'album') {
+      const albumsResult = await handleSpotifyApiCall(
+        () => spotifyApi.getMySavedAlbums({ limit }),
+        'getMySavedAlbums'
+      );
+      
+      if (albumsResult) {
+        items.push(...albumsResult.body.items.map(savedAlbum => ({
+          id: savedAlbum.album.id,
+          name: savedAlbum.album.name,
+          type: 'album' as const,
+          imageUrl: savedAlbum.album.images?.[0]?.url || DEFAULT_IMAGES.PLACEHOLDER,
+          subtitle: `Album • ${getArtistNames(savedAlbum.album.artists)}`,
+          creator: savedAlbum.album.artists[0]?.name || 'Unknown',
+          dateAdded: new Date(savedAlbum.added_at),
+          lastPlayed: null,
+        })));
+      }
+    }
 
+    // Sort items based on sort parameter
+    if (sort === 'recents') {
+      // For recents, we'd need to fetch recently played and sort by added date
+      // This is a simplified version
+      items.sort((a, b) => (b.dateAdded?.getTime() || 0) - (a.dateAdded?.getTime() || 0));
+    } else if (sort === 'alpha') {
+      items.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sort === 'creator') {
+      items.sort((a, b) => a.creator.localeCompare(b.creator));
+    } else if (sort === 'added') {
+      items.sort((a, b) => (b.dateAdded?.getTime() || 0) - (a.dateAdded?.getTime() || 0));
+    }
+
+    setCachedData(cacheKey, items);
+    return items;
   } catch (error) {
-    handleError(error, { sort, filter });
-    return null;
+    console.error('❌ Error fetching user library:', error);
+    return [];
   }
-};
-
-// Helper function to check if Promise.allSettled result is fulfilled
-function isFulfilled<T>(result: PromiseSettledResult<T>): result is PromiseFulfilledResult<T> {
-  return result.status === 'fulfilled';
 }
 
+/**
+ * Fetches album data with enhanced error handling
+ */
+export async function getAlbumById(albumId: string): Promise<SpotifyApi.SingleAlbumResponse | null> {
+  const cacheKey = `album_${albumId}`;
+  const cached = getCachedData<SpotifyApi.SingleAlbumResponse>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const spotifyApi = await getSpotifyServerApi();
+    const albumResult = await handleSpotifyApiCall(
+      () => spotifyApi.getAlbum(albumId),
+      `getAlbumById(${albumId})`
+    );
+    
+    if (albumResult) {
+      setCachedData(cacheKey, albumResult.body);
+      return albumResult.body;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`❌ Error fetching album ${albumId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetches playlist data with enhanced error handling
+ */
+export async function getPlaylistById(playlistId: string): Promise<SpotifyApi.SinglePlaylistResponse | null> {
+  const cacheKey = `playlist_${playlistId}`;
+  const cached = getCachedData<SpotifyApi.SinglePlaylistResponse>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const spotifyApi = await getSpotifyServerApi();
+    const playlistResult = await handleSpotifyApiCall(
+      () => spotifyApi.getPlaylist(playlistId),
+      `getPlaylistById(${playlistId})`
+    );
+    
+    if (playlistResult) {
+      setCachedData(cacheKey, playlistResult.body);
+      return playlistResult.body;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`❌ Error fetching playlist ${playlistId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetches liked songs with enhanced error handling
+ */
+export async function getLikedSongs(): Promise<SpotifyApi.UsersSavedTracksResponse | null> {
+  const cacheKey = 'liked_songs';
+  const cached = getCachedData<SpotifyApi.UsersSavedTracksResponse>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const spotifyApi = await getSpotifyServerApi();
+    const likedSongsResult = await handleSpotifyApiCall(
+      () => spotifyApi.getMySavedTracks({ limit: CACHE_CONFIG.MAX_TRACKS }),
+      'getLikedSongs'
+    );
+    
+    if (likedSongsResult) {
+      setCachedData(cacheKey, likedSongsResult.body);
+      return likedSongsResult.body;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('❌ Error fetching liked songs:', error);
+    return null;
+  }
+}
+
+/**
+ * Fetches main content data with enhanced error handling
+ */
 export async function getMainContentData() {
   const cacheKey = 'main_content';
   const cached = getCachedData<{
@@ -205,6 +259,7 @@ export async function getMainContentData() {
     albums: SpotifyApi.SavedAlbumObject[] | null;
     newReleases: SpotifyApi.AlbumObjectSimplified[] | null;
   }>(cacheKey);
+  
   if (cached) {
     return cached;
   }
@@ -216,164 +271,102 @@ export async function getMainContentData() {
   };
 
   try {
+    console.log('🎵 Initializing Spotify API...');
     const spotifyApi = await getSpotifyServerApi();
+    console.log('✅ Spotify API initialized successfully');
 
+    console.log('🎵 Fetching user data from Spotify...');
+    
+    // Use Promise.allSettled with individual error handling
     const [playlistsResult, savedAlbumsResult, newReleasesResult] = await Promise.allSettled([
-      spotifyApi.getUserPlaylists({ limit: 20 }),
-      spotifyApi.getMySavedAlbums({ limit: 20 }),
-      spotifyApi.getNewReleases({ limit: 12, country: 'RU' }),
+      handleSpotifyApiCall(() => spotifyApi.getUserPlaylists({ limit: 20 }), 'getUserPlaylists'),
+      handleSpotifyApiCall(() => spotifyApi.getMySavedAlbums({ limit: 20 }), 'getMySavedAlbums'),
+      handleSpotifyApiCall(() => spotifyApi.getNewReleases({ limit: 12, country: 'RU' }), 'getNewReleases'),
     ]);
 
-    if (isFulfilled(playlistsResult)) {
+    // Log results for debugging
+    console.log('📊 Spotify API results:', {
+      playlists: playlistsResult.status,
+      albums: savedAlbumsResult.status,
+      newReleases: newReleasesResult.status
+    });
+
+    if (isFulfilled(playlistsResult) && playlistsResult.value) {
       data.playlists = playlistsResult.value.body.items;
+      console.log(`✅ Fetched ${data.playlists.length} playlists`);
+    } else {
+      console.warn('⚠️ Failed to fetch playlists');
     }
-    if (isFulfilled(savedAlbumsResult)) {
+
+    if (isFulfilled(savedAlbumsResult) && savedAlbumsResult.value) {
       data.albums = savedAlbumsResult.value.body.items;
+      console.log(`✅ Fetched ${data.albums.length} saved albums`);
+    } else {
+      console.warn('⚠️ Failed to fetch saved albums');
     }
-    if (isFulfilled(newReleasesResult)) {
+
+    if (isFulfilled(newReleasesResult) && newReleasesResult.value) {
       data.newReleases = newReleasesResult.value.body.albums.items;
+      console.log(`✅ Fetched ${data.newReleases.length} new releases`);
+    } else {
+      console.warn('⚠️ Failed to fetch new releases');
     }
 
     setCachedData(cacheKey, data);
+    console.log('✅ Main content data fetched successfully:', { 
+      playlists: data.playlists?.length || 0, 
+      albums: data.albums?.length || 0, 
+      newReleases: data.newReleases?.length || 0 
+    });
     return data;
   } catch (e) {
-    console.error("Ошибка в getMainContentData:", e);
-    return data;
-  }
-}
-
-export async function getRecentlyPlayedTracks(limit: number = 20) {
-  try {
-    const spotifyApi = await getSpotifyServerApi();
-    const result = await spotifyApi.getMyRecentlyPlayedTracks({ limit });
+    console.error("❌ Error in getMainContentData:", e);
     
-    // Убираем дубликаты и возвращаем уникальные треки
-    const uniqueTracks = result.body.items
-      .filter((item, index, self) => 
-        index === self.findIndex(t => t.track.id === item.track.id)
-      )
-      .slice(0, limit)
-      .map(item => ({
-        id: item.track.id,
-        uri: item.track.uri || '',
-        name: item.track.name,
-        duration_ms: item.track.duration_ms,
-        artists: item.track.artists.map(artist => ({
-          name: artist.name,
-          uri: artist.uri || ''
-        })),
-        album: {
-          name: item.track.album.name,
-          uri: item.track.album.uri || '',
-          images: item.track.album.images
-        },
-        played_at: item.played_at
-      }));
-
-    return uniqueTracks;
-  } catch (e) {
-    console.error("Ошибка в getRecentlyPlayedTracks:", e);
-    return [];
-  }
-}
-
-export async function getLikedSongs() {
-  const cacheKey = 'liked_songs';
-  const cached = getCachedData<SpotifyApi.PlaylistObjectFull>(cacheKey);
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    const spotifyApi = await getSpotifyServerApi();
-    
-    // Ограничиваем до 200 треков для ускорения загрузки
-    const allTracks = [];
-    let offset = 0;
-    const limit = 50;
-    const maxTracks = 200;
-    
-    while (allTracks.length < maxTracks) {
-      const result = await spotifyApi.getMySavedTracks({ 
-        limit, 
-        offset 
-      });
-      
-      allTracks.push(...result.body.items);
-      
-      // Если получили меньше треков чем лимит, значит это последняя страница
-      if (result.body.items.length < limit) {
-        break;
-      }
-      
-      offset += limit;
+    // Check if it's an authentication error
+    if (e instanceof Error && e.message.includes('access token')) {
+      console.log('🔑 Authentication error - user needs to connect Spotify');
     }
     
-    // Преобразуем в формат плейлиста для совместимости
-    const likedSongsPlaylist = {
-      id: 'liked-songs',
-      name: 'Liked Songs',
-      description: 'Your liked songs',
-      images: [{ url: 'https://misc.scdn.co/liked-songs/liked-songs-300.png' }],
-      owner: { display_name: 'You' },
-      followers: { total: allTracks.length },
-      tracks: {
-        items: allTracks.map(item => ({
-          track: item.track
-        }))
-      }
+    // Return empty data instead of throwing
+    return data;
+  }
+}
+
+/**
+ * Enhanced search function with timeout and error handling
+ */
+export async function searchSpotify(q: string, accessToken: string) {
+  if (!q || !accessToken) return { tracks: [], albums: [], artists: [], playlists: [] };
+  
+  try {
+    const params = new URLSearchParams({
+      q,
+      type: 'track,album,artist,playlist',
+      limit: '8',
+    });
+    
+    const response = await fetchWithRetry(
+      `https://api.spotify.com/v1/search?${params}`,
+      { 
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+      RATE_LIMIT.MAX_RETRIES,
+      TIMEOUT_CONFIG.REQUEST_TIMEOUT
+    );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return {
+      tracks: data.tracks?.items || [],
+      albums: data.albums?.items || [],
+      artists: data.artists?.items || [],
+      playlists: data.playlists?.items || [],
     };
-    
-    setCachedData(cacheKey, likedSongsPlaylist);
-    return likedSongsPlaylist;
   } catch (e) {
-    console.error('Ошибка в getLikedSongs:', e);
-    return null;
-  }
-}
-
-export async function getPlaylistById(playlistId: string) {
-  const cacheKey = `playlist_${playlistId}`;
-  const cached = getCachedData<SpotifyApi.PlaylistObjectFull>(cacheKey);
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    
-    // Специальная обработка для Liked Songs
-    if (playlistId === 'liked-songs') {
-      return await getLikedSongs();
-    }
-    
-    const spotifyApi = await getSpotifyServerApi();
-    
-    const result = await spotifyApi.getPlaylist(playlistId);
-    
-    setCachedData(cacheKey, result.body);
-    return result.body;
-  } catch (e) {
-    console.error('Ошибка в getPlaylistById:', e);
-    return null;
-  }
-}
-
-export async function getAlbumById(albumId: string) {
-  const cacheKey = `album_${albumId}`;
-  const cached = getCachedData<SpotifyApi.AlbumObjectFull>(cacheKey);
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    const spotifyApi = await getSpotifyServerApi();
-    
-    const result = await spotifyApi.getAlbum(albumId);
-    
-    setCachedData(cacheKey, result.body);
-    return result.body;
-  } catch (e) {
-    console.error('Ошибка в getAlbumById:', e);
-    return null;
+    console.error('❌ Spotify search error:', e);
+    return { tracks: [], albums: [], artists: [], playlists: [] };
   }
 }

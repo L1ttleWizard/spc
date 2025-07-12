@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import { Player } from './Player';
 import { LibraryItem, LibrarySortType, LibraryFilterType } from '@/types';
 
 interface AppLayoutProps {
@@ -29,7 +28,7 @@ export default function AppLayout({
 
   useEffect(() => {
     // Показываем загрузку на короткое время для плавности
-    const timer = setTimeout(() => setIsLoading(false), 300);
+    const timer = setTimeout(() => setIsLoading(false), 100);
     return () => clearTimeout(timer);
   }, []);
 
@@ -64,11 +63,6 @@ export default function AppLayout({
             {children}
           </main>
         </div>
-      </div>
-      
-      {/* Плеер внизу */}
-      <div className="h-24 flex-shrink-0">
-        <Player />
       </div>
     </div>
   );

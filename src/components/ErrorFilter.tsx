@@ -10,7 +10,7 @@ export function ErrorFilter() {
     const originalConsoleLog = console.log;
 
     // Filter function for permissions policy violations
-    const shouldFilter = (message: any): boolean => {
+    const shouldFilter = (message: unknown): boolean => {
       if (typeof message === 'string') {
         return message.includes('Permissions policy violation: unload is not allowed') ||
                message.includes('Permissions policy violation') ||

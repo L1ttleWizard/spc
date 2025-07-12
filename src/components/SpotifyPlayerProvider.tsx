@@ -9,6 +9,8 @@ interface SpotifyPlayerContextType {
   isActive: boolean;
   currentTrack: unknown;
   deviceId: string | null;
+  currentPosition: number;
+  trackDuration: number;
   playTrack: (trackUri: string) => void;
   playPlaylist: (playlistUri: string, trackIndex?: number) => void;
   togglePlay: () => Promise<void>;
@@ -17,6 +19,7 @@ interface SpotifyPlayerContextType {
   nextTrack: () => Promise<void>;
   previousTrack: () => Promise<void>;
   setVolume: (volume: number) => Promise<void>;
+  transferPlayback: (deviceId: string) => Promise<void>;
   error: string | null;
   clearError: () => void;
 }
@@ -31,6 +34,8 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
     isActive,
     currentTrack,
     deviceId,
+    currentPosition,
+    trackDuration,
     playTrack,
     playPlaylist,
     togglePlay,
@@ -39,6 +44,7 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
     nextTrack,
     previousTrack,
     setVolume,
+    transferPlayback,
   } = useSpotifyPlayer();
 
   // Initialize liked tracks
@@ -100,6 +106,8 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
     isActive,
     currentTrack,
     deviceId,
+    currentPosition,
+    trackDuration,
     playTrack,
     playPlaylist,
     togglePlay,
@@ -108,6 +116,7 @@ export function SpotifyPlayerProvider({ children }: { children: React.ReactNode 
     nextTrack,
     previousTrack,
     setVolume,
+    transferPlayback,
     error,
     clearError,
   };

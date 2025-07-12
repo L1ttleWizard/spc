@@ -116,4 +116,4 @@ export default function HorizontalScrollContainer({
       {/* Градиентные края удалены */}
     </div>
   );
-} 
+}

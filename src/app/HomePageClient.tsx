@@ -1,67 +1,109 @@
 "use client";
 
-import React from 'react';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
-import { selectUser, selectUserStatus } from '@/redux/slices/userSlice';
-import { useSpotifyPlayer } from '@/hooks/useSpotifyPlayer';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import HorizontalScrollContainer from '@/components/HorizontalScrollContainer';
+import { RootState } from '@/redux/store';
 
 type UserPlaylist = SpotifyApi.PlaylistObjectSimplified;
-type SavedAlbum = SpotifyApi.SavedAlbumObject;
-type NewReleaseAlbum = SpotifyApi.AlbumObjectSimplified;
+type UserAlbum = SpotifyApi.SavedAlbumObject;
+type NewRelease = SpotifyApi.AlbumObjectSimplified;
 
 interface HomePageClientProps {
   playlists: UserPlaylist[] | null;
-  albums: SavedAlbum[] | null;
-  newReleases: NewReleaseAlbum[] | null;
+  albums: UserAlbum[] | null;
+  newReleases: NewRelease[] | null;
 }
 
 export default function HomePageClient({ playlists, albums, newReleases }: HomePageClientProps) {
-  const user = useSelector(selectUser);
-  const status = useSelector(selectUserStatus);
+  const user = useSelector((state: RootState) => state.user.user);
+  const userStatus = useSelector((state: RootState) => state.user.status);
+  const userError = useSelector((state: RootState) => state.user.error);
   const router = useRouter();
-  useSpotifyPlayer();
   
-  useEffect(() => {
-    if (status === 'loading') return;
-    if (!user) router.replace('/login');
-  }, [user, status, router]);
+  console.log('🏠 HomePageClient:', { 
+    hasFirebaseUser: !!user, 
+    userId: user?.uid,
+    userStatus,
+    userError,
+    playlists: playlists?.length, 
+    albums: albums?.length, 
+    newReleases: newReleases?.length 
+  });
+  
+  // Show loading while auth state is being determined
+  const isLoading = userStatus === 'loading';
 
-  if (status === 'loading' || !user) {
+  useEffect(() => {
+    // Only redirect if auth state is determined and user is null
+    if (userStatus !== 'loading' && user === null) {
+      console.log('🔐 No Firebase user, redirecting to login');
+      router.replace('/login');
+    }
+  }, [user, userStatus, router]);
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your library...</p>
+        </div>
       </div>
     );
   }
-  
+
+  // Don't render anything if user is null (will redirect)
+  if (user === null) {
+    return null;
+  }
+
+  // If there's an auth error, show error message
+  if (userError) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Authentication error: {userError}</p>
+          <button 
+            onClick={() => router.push('/login')}
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // User is authenticated, render the main content
   const isSpotifyConnected = !!(playlists || albums || newReleases);
 
   return (
     <div className="p-6 space-y-8 w-full">
-      {/* Отладка плеера */}
+      {/* Debug info */}
+      <div className="text-sm text-gray-400 mb-4">
+        Logged in as: {user.email} (ID: {user.uid})
+      </div>
       
-      
-        {!isSpotifyConnected ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <h2 className="text-2xl font-bold mb-4">Подключите ваш аккаунт Spotify</h2>
-            <p className="text-neutral-400 mb-8">Чтобы слушать музыку и видеть ваши плейлисты.</p>
+      {!isSpotifyConnected ? (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+          <h2 className="text-2xl font-bold mb-4">Подключите ваш аккаунт Spotify</h2>
+          <p className="text-neutral-400 mb-8">Чтобы слушать музыку и видеть ваши плейлисты.</p>
           <Link href="/api/auth/login" className="bg-green-500 text-black font-bold py-3 px-8 rounded-full text-lg hover:bg-green-600 transition-colors">
               Подключить Spotify
-            </Link>
-          </div>
-        ) : (
-          <>
-            <h1 className="text-3xl font-bold mb-6">Добрый вечер!</h1>
+          </Link>
+        </div>
+      ) : (
+        <>
+          <h1 className="text-3xl font-bold mb-6">Добрый вечер!</h1>
 
           <div className="space-y-8">
             {newReleases && newReleases.length > 0 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4 overflow-x-clip">Новые релизы</h2>
+                <h2 className="text-2xl font-bold mb-4 overflow-x-clip">Новые альбомы</h2>
                 <HorizontalScrollContainer>
                 {newReleases.map((album) => (
                     <div key={album.id} className="flex-shrink-0 w-48 min-w-0 overflow-visible">
@@ -123,7 +165,7 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
 
             {albums && albums.length > 0 && (
               <div>
-                <h2 className="text-2xl font-bold mb-4 overflow-x-clip">Сохраненные альбомы</h2>
+                <h2 className="text-2xl font-bold mb-4 overflow-x-clip">Ваши альбомы</h2>
                 <HorizontalScrollContainer>
                     {albums.map(({ album }) => (
                     <div key={album.id} className="flex-shrink-0 w-48 min-w-0 overflow-visible">
@@ -152,8 +194,8 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
               </div>
             )}
           </div>
-          </>
-        )}
-      </div>
+        </>
+      )}
+    </div>
   );
 }

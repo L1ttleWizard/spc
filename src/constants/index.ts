@@ -17,9 +17,20 @@ export const CACHE_CONFIG = {
   MAX_TRACKS: 200,
 } as const;
 
-// Rate limiting
+// Rate limiting and timeout settings
 export const RATE_LIMIT = {
   MIN_REQUEST_INTERVAL: 100, // 100ms between requests
+  MAX_RETRIES: 3,
+  BASE_DELAY: 1000,
+  MAX_DELAY: 10000,
+} as const;
+
+// Network timeout settings
+export const TIMEOUT_CONFIG = {
+  REQUEST_TIMEOUT: 10000, // 10 seconds
+  PLAYER_INIT_TIMEOUT: 15000, // 15 seconds
+  SDK_LOAD_TIMEOUT: 10000, // 10 seconds
+  CONNECTION_TIMEOUT: 8000, // 8 seconds
 } as const;
 
 // Spotify scopes
@@ -32,6 +43,7 @@ export const SPOTIFY_SCOPES = [
   'user-read-playback-state',
   'user-modify-playback-state',
   'user-library-read',
+  'user-library-modify',
   'user-read-recently-played',
 ] as const;
 
@@ -39,6 +51,9 @@ export const SPOTIFY_SCOPES = [
 export const PLAYER_CONFIG = {
   NAME: 'Spotify Clone Player',
   DEFAULT_VOLUME: 0.5,
+  REFRESH_INTERVAL: 2000, // 2 seconds
+  SEEK_UPDATE_INTERVAL: 1000, // 1 second
+  DEVICE_REFRESH_INTERVAL: 10000, // 10 seconds
 } as const;
 
 // UI Constants
@@ -56,6 +71,9 @@ export const ERROR_MESSAGES = {
   NETWORK_ERROR: 'Network error occurred',
   INVALID_CREDENTIALS: 'Invalid credentials provided',
   PLAYER_INIT_FAILED: 'Failed to initialize player',
+  TIMEOUT_ERROR: 'Request timed out. Please try again.',
+  CONNECTION_ERROR: 'Connection failed. Please check your internet connection.',
+  RATE_LIMIT_ERROR: 'Too many requests. Please wait a moment and try again.',
 } as const;
 
 // Success messages
