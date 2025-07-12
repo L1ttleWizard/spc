@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import Player from './Player';
 import { LibraryItem, LibrarySortType, LibraryFilterType } from '@/types';
 
 interface AppLayoutProps {
@@ -11,6 +10,12 @@ interface AppLayoutProps {
   sidebarItems?: LibraryItem[] | null;
   currentSort?: LibrarySortType;
   currentFilter?: LibraryFilterType;
+}
+
+interface SidebarProps {
+  items?: LibraryItem[] | null | undefined;
+  currentSort?: LibrarySortType | undefined;
+  currentFilter?: LibraryFilterType | undefined;
 }
 
 export default function AppLayout({ 
@@ -23,7 +28,7 @@ export default function AppLayout({
 
   useEffect(() => {
     // Показываем загрузку на короткое время для плавности
-    const timer = setTimeout(() => setIsLoading(false), 300);
+    const timer = setTimeout(() => setIsLoading(false), 100);
     return () => clearTimeout(timer);
   }, []);
 
@@ -42,16 +47,14 @@ export default function AppLayout({
       {/* Основной контент */}
       <div className="flex flex-1 overflow-hidden">
         {/* Сайдбар */}
-        <div className="w-64 flex-shrink-0">
-          <Sidebar 
-            items={sidebarItems}
-            currentSort={currentSort}
-            currentFilter={currentFilter}
-          />
-        </div>
+        <Sidebar 
+          items={sidebarItems as SidebarProps['items']}
+          currentSort={currentSort as SidebarProps['currentSort']}
+          currentFilter={currentFilter as SidebarProps['currentFilter']}
+        />
         
         {/* Основная область */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden md:ml-72">
           {/* Хедер */}
           <Header />
           
@@ -60,11 +63,6 @@ export default function AppLayout({
             {children}
           </main>
         </div>
-      </div>
-      
-      {/* Плеер внизу */}
-      <div className="h-24 flex-shrink-0">
-        <Player />
       </div>
     </div>
   );

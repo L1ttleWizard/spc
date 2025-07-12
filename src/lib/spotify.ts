@@ -1,44 +1,59 @@
-// src/lib/spotify.ts
+/**
+ * Spotify API configuration and utilities
+ */
 
 import SpotifyWebApi from 'spotify-web-api-node';
+import { API_URLS, SPOTIFY_SCOPES, ERROR_MESSAGES } from '@/constants';
+import { SpotifyError, ErrorType } from '@/lib/error-handler';
 
-const clientId = process.env.SPOTIFY_CLIENT_ID;
-const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-const redirectUri = process.env.SPOTIFY_REDIRECT_URI || 'http://127.0.0.1:3000/api/auth/callback/spotify';
+// Environment validation
+function validateEnvironment(): {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+} {
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  const redirectUri = process.env.SPOTIFY_REDIRECT_URI || `${process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3000'}/api/auth/callback/spotify`;
 
-if (!clientId || !clientSecret) {
-  throw new Error(
-    'Одна или несколько переменных окружения для Spotify не определены. Проверьте .env.local файл.'
-  );
+  if (!clientId || !clientSecret) {
+    throw new SpotifyError(
+      ErrorType.VALIDATION,
+      ERROR_MESSAGES.INVALID_CREDENTIALS,
+      new Error('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET'),
+      { clientId: !!clientId, clientSecret: !!clientSecret }
+    );
+  }
+
+  return { clientId, clientSecret, redirectUri };
 }
 
-const scopes = [
-  'user-read-email',
-  'user-read-private',
-  'playlist-read-private',
-  'playlist-read-collaborative',
-  'streaming',
-  'user-read-playback-state',
-  'user-modify-playback-state',
-  'user-library-read',
-  'user-read-recently-played'
-].join(',');
+// Get validated environment variables
+const { clientId, clientSecret, redirectUri } = validateEnvironment();
 
-const params = {
+// Build authorization URL
+const authParams = {
   response_type: 'code',
-  client_id: clientId, 
-  scope: scopes,
-  redirect_uri: redirectUri, 
+  client_id: clientId,
+  scope: SPOTIFY_SCOPES.join(' '),
+  redirect_uri: redirectUri,
 };
 
-const queryParamString = new URLSearchParams(params).toString();
+const queryString = new URLSearchParams(authParams).toString();
+export const LOGIN_URL = `${API_URLS.SPOTIFY_AUTH}?${queryString}`;
 
-export const LOGIN_URL = `https://accounts.spotify.com/authorize?${queryParamString}`;
-
+// Create Spotify API instance
 const spotifyApi = new SpotifyWebApi({
-  clientId: clientId, 
-  clientSecret: clientSecret,
-  redirectUri:redirectUri,
+  clientId,
+  clientSecret,
+  redirectUri,
 });
 
 export default spotifyApi;
+
+// Export environment values for use in other modules
+export const SPOTIFY_CONFIG = {
+  clientId,
+  clientSecret,
+  redirectUri,
+} as const;

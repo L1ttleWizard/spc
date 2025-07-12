@@ -1,10 +1,13 @@
+import React from 'react';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { ReduxProvider } from '@/redux/reduxProvider';
 import { AuthInitializer } from '@/components/AuthInitializer';
+import { SessionProvider } from '@/components/SessionProvider';
 import { SpotifyPlayerProvider } from '@/components/SpotifyPlayerProvider';
-import Script from 'next/script';
+import { Player } from '@/components/Player';
+import { PlayerDebug } from '@/components/PlayerDebug';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -20,15 +23,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <Script src='https://sdk.scdn.co/spotify-player.js'></Script>
-      </head>
       <body className={inter.className}>
         <ReduxProvider>
           <AuthInitializer>
-            <SpotifyPlayerProvider>
-              {children}
-            </SpotifyPlayerProvider>
+            <SessionProvider>
+              <SpotifyPlayerProvider>
+                {children}
+                <PlayerDebug />
+                <div className="h-24 flex-shrink-0">
+                  <Player />
+                </div>
+              </SpotifyPlayerProvider>
+            </SessionProvider>
           </AuthInitializer>
         </ReduxProvider>
       </body>

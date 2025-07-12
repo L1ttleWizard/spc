@@ -49,6 +49,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Remove the problematic Permissions-Policy header that uses unsupported features
   experimental: {
    
     

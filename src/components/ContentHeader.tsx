@@ -2,18 +2,25 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Play, Heart, MoreHorizontal } from 'lucide-react';
+import { Play, MoreHorizontal } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { likeTrack, unlikeTrack } from '@/redux/thunks/playerThunks';
+import { selectPlayerState } from '@/redux/slices/playerSlice';
+import { useSession } from '@/hooks/useSession';
+import { AppDispatch } from '@/redux/store';
+import { Heart } from 'lucide-react';
 
 interface ContentHeaderProps {
   type: 'playlist' | 'album' | 'content';
   name: string;
-  imageUrl?: string;
-  owner?: string;
-  artist?: string;
+  imageUrl?: string | undefined;
+  owner?: string | undefined;
+  artist?: string | undefined;
   trackCount: number;
-  followers?: number;
+  followers?: number | undefined;
   onPlay?: () => void;
   deviceId?: string | null;
+  id?: string; // Make id optional since not all content types need it
 }
 
 export default function ContentHeader({
@@ -25,10 +32,36 @@ export default function ContentHeader({
   trackCount,
   followers,
   onPlay,
-  deviceId
+  deviceId,
+  id
 }: ContentHeaderProps) {
+  const dispatch = useDispatch<AppDispatch>();
+  const { likedTracks } = useSelector(selectPlayerState);
+  const { accessToken } = useSession();
   const displayName = owner || artist;
   const canPlay = deviceId && onPlay;
+  
+  // Only show like functionality for tracks (when type is 'content' and we have a valid track ID)
+  const canLike = type === 'content' && id && id !== 'undefined';
+  const isLiked = canLike && likedTracks?.includes(id);
+
+  const handleLikeClick = () => {
+    if (!accessToken || !canLike || !id || id === 'undefined') {
+      console.warn('Cannot like/unlike: missing accessToken, invalid content type, or invalid track ID', {
+        accessToken: !!accessToken,
+        canLike,
+        id,
+        type
+      });
+      return;
+    }
+
+    if (isLiked) {
+      dispatch(unlikeTrack({ accessToken, trackId: id }));
+    } else {
+      dispatch(likeTrack({ accessToken, trackId: id }));
+    }
+  };
 
   return (
     <>
@@ -44,6 +77,8 @@ export default function ContentHeader({
                 width={232}
                 height={232}
                 className="rounded shadow-2xl"
+                priority
+                loading="eager"
               />
             </div>
           )}
@@ -84,7 +119,9 @@ export default function ContentHeader({
       <div className="px-8 pb-4">
         <div className="flex items-center gap-4">
           <button 
-            onClick={onPlay}
+            onClick={() => {
+              if (onPlay) onPlay();
+            }}
             disabled={!canPlay}
             className={`font-bold py-4 px-8 rounded-full flex items-center gap-2 transition-all duration-200 hover:scale-105 ${
               canPlay 
@@ -92,13 +129,20 @@ export default function ContentHeader({
                 : 'bg-neutral-600 text-neutral-400 cursor-not-allowed'
             }`}
           >
-            <Play fill="black" size={24} />
-            {canPlay ? 'Воспроизвести' : 'Подключение...'}
+            <Play fill={canPlay ? "black" : "currentColor"} size={24} />
+            {canPlay ? 'Воспроизвести' : (deviceId ? 'Загрузка...' : 'Подключение...')}
           </button>
           
-          <button className="text-neutral-300 hover:text-white transition-colors">
-            <Heart size={32} />
-          </button>
+          {/* Only show like button for tracks */}
+          {canLike && (
+            <button 
+              className="text-neutral-300 hover:text-white transition-colors"
+              aria-label={isLiked ? 'Unlike' : 'Like'}
+              onClick={handleLikeClick}
+            >
+              <Heart size={32} fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" />
+            </button>
+          )}
           
           <button className="text-neutral-300 hover:text-white transition-colors">
             <MoreHorizontal size={32} />

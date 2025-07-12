@@ -1,82 +1,135 @@
-// src/app/api/auth/callback/spotify/route.ts
+/**
+ * Spotify OAuth callback handler
+ */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { setCookie } from 'cookies-next';
+import { API_URLS, ERROR_MESSAGES } from '@/constants';
+import { SPOTIFY_CONFIG } from '@/lib/spotify';
+import { handleError, ErrorType, logError } from '@/lib/error-handler';
+
+/**
+ * Exchanges authorization code for access and refresh tokens
+ */
+async function exchangeCodeForTokens(code: string, redirectUri: string) {
+  const credentials = Buffer.from(
+    `${SPOTIFY_CONFIG.clientId}:${SPOTIFY_CONFIG.clientSecret}`
+  ).toString('base64');
+
+  const body = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: redirectUri,
+  });
+
+  const response = await fetch(API_URLS.SPOTIFY_TOKEN, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.error_description || ERROR_MESSAGES.TOKEN_EXCHANGE_FAILED;
+    
+    throw new Error(errorMessage);
+  }
+
+  return response.json();
+}
+
+/**
+ * Sets secure HTTP-only cookies for tokens using Next.js native cookie handling
+ */
+function setTokenCookies(
+  response: NextResponse,
+  accessToken: string,
+  refreshToken: string,
+  expiresIn: number
+): NextResponse {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Set access token cookie
+  response.cookies.set('spotify_access_token', accessToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: expiresIn,
+  });
+
+  // Set refresh token cookie
+  response.cookies.set('spotify_refresh_token', refreshToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+  });
+
+  return response;
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
+  const state = searchParams.get('state');
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3000';
-  
-  const redirectWithError = (errorType: string) => NextResponse.redirect(`${baseUrl}/?error=${errorType}`);
+  const redirectUri = SPOTIFY_CONFIG.redirectUri;
 
+  const redirectWithError = (errorType: string) => {
+    return NextResponse.redirect(`${baseUrl}?error=${errorType}`);
+  };
+
+  // Handle OAuth errors
   if (error) {
-    console.error('Callback error:', error);
-    return redirectWithError('spotify_login_failed');
+    logError({
+      type: ErrorType.AUTHENTICATION,
+      message: `Spotify OAuth error: ${error}`,
+      context: { error, state },
+    });
+    return redirectWithError('spotify_auth_failed');
   }
+
+  // Validate authorization code
   if (!code) {
+    logError({
+      type: ErrorType.VALIDATION,
+      message: 'No authorization code received',
+      context: { state },
+    });
     return redirectWithError('spotify_no_code');
   }
 
-  // --- НАЧАЛО РУЧНОГО ОБМЕНА ТОКЕНОВ ---
   try {
-    const clientId = process.env.SPOTIFY_CLIENT_ID;
-    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-    const redirectUri = process.env.SPOTIFY_REDIRECT_URI || `${baseUrl}/api/auth/callback/spotify`;
+    // Exchange code for tokens
+    const tokenData = await exchangeCodeForTokens(code, redirectUri);
+    const { access_token, refresh_token, expires_in } = tokenData;
 
-    if (!clientId || !clientSecret) {
-      throw new Error('Spotify Client ID или Secret не определены');
+    if (!access_token || !refresh_token) {
+      throw new Error('Invalid token response from Spotify');
     }
 
-    // Готовим тело запроса в формате x-www-form-urlencoded
-    const body = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: redirectUri,
-    });
-
-    // Делаем POST-запрос к эндпоинту токенов Spotify
-    const spotifyResponse = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: {
-        // Кодируем client_id:client_secret в Base64, как того требует Spotify
-        'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: body,
-    });
-
-    const data = await spotifyResponse.json();
-
-    // Если Spotify вернул ошибку, выбрасываем ее, чтобы попасть в catch
-    if (!spotifyResponse.ok) {
-      console.error('Spotify API Error:', data);
-      throw new Error(data.error_description || 'Не удалось получить токены');
-    }
-
-    const { access_token, refresh_token, expires_in } = data;
-
-    // --- КОНЕЦ РУЧНОГО ОБМЕНА ТОКЕНОВ ---
-
-    console.log('Токены успешно получены вручную!');
-
+    // Create redirect response
     const response = NextResponse.redirect(baseUrl);
+    
+    // Set secure cookies using Next.js native method
+    setTokenCookies(response, access_token, refresh_token, expires_in);
 
-    setCookie('spotify_access_token', access_token, {
-      req: request, res: response, httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', maxAge: expires_in, path: '/',
-    });
-    setCookie('spotify_refresh_token', refresh_token, {
-      req: request, res: response, httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', maxAge: 60 * 60 * 24 * 30, path: '/',
-    });
-
+    console.log('✅ Successfully set Spotify tokens in cookies');
     return response;
 
   } catch (err) {
-    console.error('Ошибка при ручном получении токенов:', err);
+    handleError(err, {
+      code,
+      redirectUri,
+      baseUrl,
+    });
+
     return redirectWithError('spotify_token_exchange_failed');
   }
 }

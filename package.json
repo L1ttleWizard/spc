@@ -6,11 +6,14 @@
     "dev": "next dev -H 127.0.0.1",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.4",
     "@reduxjs/toolkit": "^2.8.2",
+    "axios": "^1.10.0",
     "cookies-next": "^6.0.0",
     "firebase": "^11.10.0",
     "lucide-react": "^0.525.0",
@@ -23,14 +26,24 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@types/redux-mock-store": "^1.5.0",
     "@types/spotify-web-api-node": "^5.0.11",
     "@types/spotify-web-playback-sdk": "^0.1.19",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^30.0.4",
+    "jest-environment-jsdom": "^30.0.4",
+    "redux-mock-store": "^1.5.5",
     "tailwindcss": "^4",
+    "ts-jest": "^29.4.0",
     "typescript": "^5"
   }
 }

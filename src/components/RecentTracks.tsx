@@ -2,6 +2,12 @@
 
 import React from 'react';
 import { Heart, Play } from 'lucide-react'; // Импортируем иконку Play
+import { useDispatch, useSelector } from 'react-redux';
+import { likeTrack, unlikeTrack } from '@/redux/thunks/playerThunks';
+import { selectPlayerState } from '@/redux/slices/playerSlice';
+import { useSession } from '@/hooks/useSession';
+import { AppDispatch } from '@/redux/store';
+import Image from 'next/image';
 
 interface RecentTrack {
   id: string;
@@ -23,6 +29,10 @@ interface RecentTracksRowProps {
 }
 
 export default function RecentTracksRow({ tracks, onPlayTrack }: RecentTracksRowProps) {
+  const dispatch = useDispatch<AppDispatch>();
+  const { likedTracks } = useSelector(selectPlayerState);
+  const { accessToken } = useSession();
+
   const getCardType = (track: RecentTrack) => {
     if (track.id === 'liked-songs') return 'liked';
     return 'album';
@@ -41,7 +51,7 @@ export default function RecentTracksRow({ tracks, onPlayTrack }: RecentTracksRow
         {/* Использование grid вместо flex для лучшей адаптивности */}
         {tracks.map((track) => {
           const cardType = getCardType(track);
-
+          const isLiked = likedTracks?.includes(track.id);
           return (
             // Обертка для карточки, которая обрабатывает клик
             <div
@@ -56,14 +66,35 @@ export default function RecentTracksRow({ tracks, onPlayTrack }: RecentTracksRow
                     <Heart size={48} fill="white" stroke="white" />
                   </div>
                 ) : (
-                  <img
+                  <Image
                     src={track.album.images?.[0]?.url || '/placeholder-playlist.png'}
                     alt={track.name}
                     className="w-full aspect-square object-cover rounded-md shadow-lg"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/placeholder-playlist.png';
-                    }}
+                    width={300}
+                    height={300}
+                    loading="lazy"
+                    fetchPriority="low"
                   />
+                )}
+
+                {/* Heart button for each track except 'liked-songs' */}
+                {cardType !== 'liked' && (
+                  <button
+                    aria-label={isLiked ? 'Unlike' : 'Like'}
+                    className={`absolute top-2 right-2 z-10 bg-black/60 rounded-full p-2 hover:text-white ${isLiked ? 'text-green-500' : 'text-neutral-400'}`}
+                    onClick={e => {
+                      e.stopPropagation();
+                      if (accessToken) {
+                        if (isLiked) {
+                          dispatch(unlikeTrack({ accessToken, trackId: track.id }));
+                        } else {
+                          dispatch(likeTrack({ accessToken, trackId: track.id }));
+                        }
+                      }
+                    }}
+                  >
+                    <Heart size={24} fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" />
+                  </button>
                 )}
 
                 {/* Кнопка Play появляется при наведении */}
