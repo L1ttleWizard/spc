@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { LibraryItem, LibrarySortType, LibraryFilterType } from '@/types';
-import { getLibraryDataClient } from '@/lib/spotify-client';
+import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import AppLayout from './AppLayout';
+import { LibraryItem, LibrarySortType, LibraryFilterType } from '@/types';
+import { getLibraryDataClient, preloadLikedSongsClient } from '@/lib/spotify-client';
+import { selectShowPlayerSidebar } from '@/redux/slices/playerSlice';
+import type { RootState } from '@/redux/store';
 
 interface LibraryProviderProps {
   children: React.ReactNode;
@@ -12,53 +14,52 @@ interface LibraryProviderProps {
 
 export default function LibraryProvider({ children }: LibraryProviderProps) {
   const [libraryItems, setLibraryItems] = useState<LibraryItem[] | null>(null);
+  const [sort, setSort] = useState<LibrarySortType>('recents');
+  const [filter, setFilter] = useState<LibraryFilterType>('playlist');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const searchParams = useSearchParams();
 
-  // Get sort and filter from URL params
-  const sort = (searchParams.get('sort') as LibrarySortType) || 'recents';
-  const filter = (searchParams.get('filter') as LibraryFilterType) || 'playlist';
+  const user = useSelector((state: RootState) => state.user.user);
+  const userStatus = useSelector((state: RootState) => state.user.status);
+  const showPlayerSidebar = useSelector(selectShowPlayerSidebar);
 
   useEffect(() => {
-    let isMounted = true;
-
     const fetchLibraryData = async () => {
+      if (userStatus === 'loading') return;
+      
+      if (!user) {
+        setIsAuthenticated(false);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsAuthenticated(true);
+      setIsLoading(true);
+      setError(null);
+
       try {
-        setIsLoading(true);
-        setError(null);
-        
         const data = await getLibraryDataClient(sort, filter);
+        setLibraryItems(data);
         
-        if (isMounted) {
-          setLibraryItems(data);
-          setIsAuthenticated(true);
-        }
+        // Start background preloading of liked songs for better performance
+        preloadLikedSongsClient();
       } catch (err) {
-        if (isMounted) {
-          // Check if it's an authentication error
-          if (err instanceof Error && err.message.includes('401')) {
-            setIsAuthenticated(false);
-            setError('Please log in to view your library');
-          } else {
-            setError(err instanceof Error ? err.message : 'Failed to load library');
-          }
-          console.error('Error fetching library data:', err);
+        console.error('Failed to fetch library data:', err);
+        
+        // Check if it's an authentication error
+        if (err instanceof Error && err.message.includes('Not authenticated')) {
+          setError('Please connect your Spotify account to view your library');
+        } else {
+          setError(err instanceof Error ? err.message : 'Failed to fetch library data');
         }
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
 
     fetchLibraryData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [sort, filter]);
+  }, [user, userStatus, sort, filter]);
 
   // Show loading state while fetching library data
   if (isLoading) {
@@ -91,17 +92,32 @@ export default function LibraryProvider({ children }: LibraryProviderProps) {
 
   // Show error state if library data failed to load
   if (error && isAuthenticated !== false) {
+    const isAuthError = error.includes('connect your Spotify account');
+    
     return (
       <div className="h-screen flex items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-red-400 text-sm">Failed to load library</p>
-          <p className="text-neutral-400 text-xs">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="px-4 py-2 bg-green-500 text-black rounded-full text-sm font-semibold hover:bg-green-400 transition-colors"
-          >
-            Try Again
-          </button>
+          <p className="text-red-400 text-sm">
+            {isAuthError ? 'Spotify Connection Required' : 'Failed to load library'}
+          </p>
+          <p className="text-neutral-400 text-xs max-w-md">{error}</p>
+          <div className="flex gap-2">
+            {isAuthError ? (
+              <button 
+                onClick={() => window.location.href = '/login'} 
+                className="px-4 py-2 bg-green-500 text-black rounded-full text-sm font-semibold hover:bg-green-400 transition-colors"
+              >
+                Connect Spotify
+              </button>
+            ) : (
+              <button 
+                onClick={() => window.location.reload()} 
+                className="px-4 py-2 bg-green-500 text-black rounded-full text-sm font-semibold hover:bg-green-400 transition-colors"
+              >
+                Try Again
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -112,6 +128,7 @@ export default function LibraryProvider({ children }: LibraryProviderProps) {
       sidebarItems={libraryItems}
       currentSort={sort}
       currentFilter={filter}
+      showPlayerSidebar={showPlayerSidebar}
     >
       {children}
     </AppLayout>

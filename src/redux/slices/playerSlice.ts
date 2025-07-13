@@ -21,6 +21,7 @@ export interface PlayerState {
   shuffle: boolean;
   queue: SpotifyApi.QueueObject | null;
   queueStatus: LoadingStatus;
+  showPlayerSidebar: boolean;
 }
 
 const initialState: PlayerState = {
@@ -37,6 +38,7 @@ const initialState: PlayerState = {
   shuffle: false,
   queue: null,
   queueStatus: 'idle',
+  showPlayerSidebar: false,
 };
 
 const playerSlice = createSlice({
@@ -120,6 +122,9 @@ const playerSlice = createSlice({
     },
     clearQueue: (state) => {
       state.queue = null;
+    },
+    togglePlayerSidebar: (state) => {
+      state.showPlayerSidebar = !state.showPlayerSidebar;
     },
   },
   extraReducers: (builder) => {
@@ -244,7 +249,8 @@ export const {
   toggleShuffle, 
   setShuffle,
   setQueue,
-  clearQueue
+  clearQueue,
+  togglePlayerSidebar
 } = playerSlice.actions;
 
 export const selectPlayerState = (state: RootState) => state.player;
@@ -252,5 +258,6 @@ export const selectDevices = (state: RootState) => state.player.devices;
 export const selectSelectedDeviceId = (state: RootState) => state.player.selectedDeviceId;
 export const selectQueue = (state: RootState) => state.player.queue;
 export const selectQueueStatus = (state: RootState) => state.player.queueStatus;
+export const selectShowPlayerSidebar = (state: RootState) => state.player.showPlayerSidebar;
 
 export default playerSlice.reducer;

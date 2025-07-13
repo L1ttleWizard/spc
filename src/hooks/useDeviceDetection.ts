@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface DeviceInfo {
   id: string;
@@ -21,11 +21,11 @@ const useDeviceDetection = (accessToken: string | null): DeviceDetectionResult =
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDevices = async () => {
-    if (!accessToken) return;
-
-    setIsLoading(true);
-    setError(null);
+  const fetchDevices = useCallback(async () => {
+    if (!accessToken) {
+      console.log('🔑 No access token available for device detection');
+      return;
+    }
 
     try {
       const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
@@ -35,31 +35,23 @@ const useDeviceDetection = (accessToken: string | null): DeviceDetectionResult =
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch devices: ${response.status}`);
+        if (response.status === 401) {
+          console.log('🔑 Device detection: Authentication required');
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      const devices: DeviceInfo[] = data.devices.map((device: any) => ({
-        id: device.id,
-        name: device.name,
-        type: device.type as DeviceInfo['type'],
-        isActive: device.is_active,
-        isRestricted: device.is_restricted,
-      }));
-
-      setAvailableDevices(devices);
-      
-      // Find the currently active device
-      const activeDevice = devices.find(device => device.isActive);
-      setCurrentDevice(activeDevice || null);
-
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch devices');
-      console.error('Error fetching devices:', err);
-    } finally {
-      setIsLoading(false);
+      setAvailableDevices(data.devices || []);
+      setCurrentDevice(data.devices?.find((device: any) => device.is_active) || null);
+    } catch (error) {
+      // Only log errors that aren't authentication related
+      if (error instanceof Error && !error.message.includes('401')) {
+        console.error('❌ Error fetching devices:', error);
+      }
     }
-  };
+  }, [accessToken]);
 
   useEffect(() => {
     fetchDevices();
@@ -68,7 +60,7 @@ const useDeviceDetection = (accessToken: string | null): DeviceDetectionResult =
     const interval = setInterval(fetchDevices, 30000);
     
     return () => clearInterval(interval);
-  }, [accessToken]);
+  }, [accessToken, fetchDevices]);
 
   return {
     currentDevice,

@@ -14,7 +14,6 @@ export const API_URLS = {
 export const CACHE_CONFIG = {
   DURATION: 5 * 60 * 1000, // 5 minutes
   DEFAULT_LIMIT: 50,
-  MAX_TRACKS: 200,
 } as const;
 
 // Rate limiting and timeout settings
@@ -68,6 +67,7 @@ export const ERROR_MESSAGES = {
   NO_ACCESS_TOKEN: 'No access token found',
   SPOTIFY_AUTH_FAILED: 'Spotify authentication failed',
   TOKEN_EXCHANGE_FAILED: 'Token exchange failed',
+  TOKEN_REFRESH_FAILED: 'Token refresh failed',
   NETWORK_ERROR: 'Network error occurred',
   INVALID_CREDENTIALS: 'Invalid credentials provided',
   PLAYER_INIT_FAILED: 'Failed to initialize player',

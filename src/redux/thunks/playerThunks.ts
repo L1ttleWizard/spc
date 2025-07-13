@@ -122,6 +122,11 @@ export const fetchDevices = createAsyncThunk<SpotifyApi.UserDevicesResponse, str
         return res;
       });
       
+      if (response.status === 401) {
+        // Don't log 401 errors as they're expected when user is not authenticated
+        return rejectWithValue('Authentication required');
+      }
+      
       if (!response.ok) {
         return rejectWithValue('Failed to fetch devices');
       }
@@ -130,6 +135,12 @@ export const fetchDevices = createAsyncThunk<SpotifyApi.UserDevicesResponse, str
       return data;
     } catch (error: unknown) {
       const typedError = error as { status?: number; message?: string };
+      
+      // Don't log authentication errors
+      if (typedError.status === 401 || typedError.message?.includes('authentication')) {
+        return rejectWithValue('Authentication required');
+      }
+      
       if (typedError.status === 429) {
         return rejectWithValue('Rate limited - please try again later');
       }
@@ -204,6 +215,12 @@ export const getMyCurrentPlaybackState = createAsyncThunk<SpotifyApi.CurrentPlay
         if (response.status === 204) {
           return null;
         }
+        
+        if (response.status === 401) {
+          // Don't log 401 errors as they're expected when user is not authenticated
+          return rejectWithValue('Authentication required');
+        }
+        
         if (!response.ok) {
           return rejectWithValue('Failed to get playback state');
         }
@@ -211,6 +228,12 @@ export const getMyCurrentPlaybackState = createAsyncThunk<SpotifyApi.CurrentPlay
         return data;
       } catch (error: unknown) {
         const typedError = error as { status?: number; message?: string };
+        
+        // Don't log authentication errors
+        if (typedError.status === 401 || typedError.message?.includes('authentication')) {
+          return rejectWithValue('Authentication required');
+        }
+        
         if (typedError.status === 429) {
           return rejectWithValue('Rate limited - please try again later');
         }
@@ -260,12 +283,19 @@ export const playTrack = createAsyncThunk<void, { trackUri: string; accessToken:
 );
 
 // Play playlist
-export const playPlaylist = createAsyncThunk<void, { playlistUri: string; accessToken: string; deviceId?: string }, ThunkApiConfig>(
+export const playPlaylist = createAsyncThunk<void, { playlistUri: string; accessToken: string; deviceId?: string; trackIndex?: number }, ThunkApiConfig>(
   'player/playPlaylist',
-  async ({ playlistUri, accessToken, deviceId }, { rejectWithValue }) => {
+  async ({ playlistUri, accessToken, deviceId, trackIndex = 0 }, { rejectWithValue }) => {
     try {
       await retryWithBackoff(async () => {
         const url = deviceId ? `${API_BASE}/play?device_id=${deviceId}` : `${API_BASE}/play`;
+        
+        // Build request body with optional offset for track index
+        const requestBody: any = { context_uri: playlistUri };
+        if (trackIndex > 0) {
+          requestBody.offset = { position: trackIndex };
+        }
+        
         const res = await fetchWithTimeout(
           url,
           {
@@ -274,7 +304,7 @@ export const playPlaylist = createAsyncThunk<void, { playlistUri: string; access
               'Authorization': `Bearer ${accessToken}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ context_uri: playlistUri }),
+            body: JSON.stringify(requestBody),
           },
           TIMEOUT_CONFIG.REQUEST_TIMEOUT
         );
@@ -611,7 +641,7 @@ export const likeTrack = createAsyncThunk<void, { accessToken: string; trackId: 
         return rejectWithValue('Invalid track ID');
       }
 
-      await retryWithBackoff(async () => {
+      const response = await retryWithBackoff(async () => {
         const res = await fetchWithTimeout(
           `https://api.spotify.com/v1/me/tracks?ids=${trackId}`,
           {
@@ -627,12 +657,31 @@ export const likeTrack = createAsyncThunk<void, { accessToken: string; trackId: 
           throw error;
         }
         
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
+        return res;
       });
+      
+      if (response.status === 401) {
+        return rejectWithValue('Authentication required');
+      }
+      
+      if (response.status === 403) {
+        return rejectWithValue('Library access required');
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
     } catch (error: unknown) {
       const typedError = error as { status?: number; message?: string };
+      
+      if (typedError.status === 401 || typedError.message?.includes('authentication')) {
+        return rejectWithValue('Authentication required');
+      }
+      
+      if (typedError.status === 403 || typedError.message?.includes('forbidden')) {
+        return rejectWithValue('Library access required');
+      }
+      
       if (typedError.status === 429) {
         return rejectWithValue('Rate limited - please try again later');
       }
@@ -650,7 +699,7 @@ export const unlikeTrack = createAsyncThunk<void, { accessToken: string; trackId
         return rejectWithValue('Invalid track ID');
       }
 
-      await retryWithBackoff(async () => {
+      const response = await retryWithBackoff(async () => {
         const res = await fetchWithTimeout(
           `https://api.spotify.com/v1/me/tracks?ids=${trackId}`,
           {
@@ -666,12 +715,31 @@ export const unlikeTrack = createAsyncThunk<void, { accessToken: string; trackId
           throw error;
         }
         
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
+        return res;
       });
+      
+      if (response.status === 401) {
+        return rejectWithValue('Authentication required');
+      }
+      
+      if (response.status === 403) {
+        return rejectWithValue('Library access required');
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
     } catch (error: unknown) {
       const typedError = error as { status?: number; message?: string };
+      
+      if (typedError.status === 401 || typedError.message?.includes('authentication')) {
+        return rejectWithValue('Authentication required');
+      }
+      
+      if (typedError.status === 403 || typedError.message?.includes('forbidden')) {
+        return rejectWithValue('Library access required');
+      }
+      
       if (typedError.status === 429) {
         return rejectWithValue('Rate limited - please try again later');
       }
@@ -703,6 +771,16 @@ export const fetchLikedTracks = createAsyncThunk<string[], string, ThunkApiConfi
         return res;
       });
       
+      if (response.status === 401) {
+        // Don't log 401 errors as they're expected when user is not authenticated
+        return rejectWithValue('Authentication required');
+      }
+      
+      if (response.status === 403) {
+        // Don't log 403 errors as they're expected when user doesn't have library access
+        return rejectWithValue('Library access required');
+      }
+      
       if (!response.ok) {
         return rejectWithValue('Failed to fetch liked tracks');
       }
@@ -711,6 +789,16 @@ export const fetchLikedTracks = createAsyncThunk<string[], string, ThunkApiConfi
       return data.items.map((item: { track: { id: string } }) => item.track.id);
     } catch (error: unknown) {
       const typedError = error as { status?: number; message?: string };
+      
+      // Don't log authentication or permission errors
+      if (typedError.status === 401 || typedError.message?.includes('authentication')) {
+        return rejectWithValue('Authentication required');
+      }
+      
+      if (typedError.status === 403 || typedError.message?.includes('forbidden')) {
+        return rejectWithValue('Library access required');
+      }
+      
       if (typedError.status === 429) {
         return rejectWithValue('Rate limited - please try again later');
       }

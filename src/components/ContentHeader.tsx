@@ -9,13 +9,15 @@ import { selectPlayerState } from '@/redux/slices/playerSlice';
 import { useSession } from '@/hooks/useSession';
 import { AppDispatch } from '@/redux/store';
 import { Heart } from 'lucide-react';
+import ArtistLink from './ArtistLink';
 
 interface ContentHeaderProps {
-  type: 'playlist' | 'album' | 'content';
+  type: 'playlist' | 'album' | 'artist' | 'content';
   name: string;
   imageUrl?: string | undefined;
   owner?: string | undefined;
   artist?: string | undefined;
+  artistId?: string | undefined; // Add artist ID for linking
   trackCount: number;
   followers?: number | undefined;
   onPlay?: () => void;
@@ -29,6 +31,7 @@ export default function ContentHeader({
   imageUrl,
   owner,
   artist,
+  artistId,
   trackCount,
   followers,
   onPlay,
@@ -97,9 +100,18 @@ export default function ContentHeader({
             <div className="flex items-center gap-2 text-neutral-300 mb-4">
               {displayName && (
                 <>
-                  <span className="font-semibold hover:underline cursor-pointer">
-                    {displayName}
-                  </span>
+                  {artistId && artist ? (
+                    <ArtistLink 
+                      artist={{ id: artistId, name: artist }} 
+                      className="font-semibold"
+                    >
+                      {artist}
+                    </ArtistLink>
+                  ) : (
+                    <span className="font-semibold">
+                      {displayName}
+                    </span>
+                  )}
                   <span>•</span>
                 </>
               )}

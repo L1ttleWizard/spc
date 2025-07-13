@@ -3,14 +3,18 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSpotifyPlayerContext } from './SpotifyPlayerProvider';
+import { useNowPlaying } from '@/hooks/useNowPlaying';
 import PlayButton from './PlayButton';
 import ProgressBar from './ProgressBar';
 import DevicePicker from './DevicePicker';
 import LikeButton from './LikeButton';
 import RepeatShuffleControls from './RepeatShuffleControls';
 import Image from 'next/image';
+import PlayerSidebar from './PlayerSidebar';
+import { useState, useRef } from 'react';
 
 import { seekToPosition, changeVolume } from '@/redux/thunks/playerThunks';
+import { togglePlayerSidebar, selectShowPlayerSidebar } from '@/redux/slices/playerSlice';
 import { useSession } from '@/hooks/useSession';
 import { useSeamlessPlayback } from '@/hooks/useSeamlessPlayback';
 import type { RootState, AppDispatch } from '@/redux/store';
@@ -35,20 +39,45 @@ export function Player() {
 
   // Use Redux state for better synchronization
   const { isPlaying, currentTrack, isActive, volume } = useSelector((state: RootState) => state.player);
+  const showSidebar = useSelector(selectShowPlayerSidebar);
 
-  // Handle volume change
-  const handleVolumeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Get now playing state from other devices
+  const { nowPlaying } = useNowPlaying();
+
+  // Local state for immediate volume feedback during dragging
+  const [localVolume, setLocalVolume] = useState(volume);
+  const volumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Update local volume when Redux volume changes
+  React.useEffect(() => {
+    setLocalVolume(volume);
+  }, [volume]);
+
+  // Handle volume change with immediate feedback
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
-    console.log('🎵 Volume change:', newVolume);
+    setLocalVolume(newVolume); // Immediate local update
     
-    if (accessToken) {
-      try {
-        const result = await dispatch(changeVolume({ accessToken, volumePercent: Math.round(newVolume * 100) })).unwrap();
-        console.log('✅ Volume changed successfully:', result);
-      } catch (error) {
-        console.warn('⚠️ Error changing volume:', error);
-      }
+    // Clear any existing timeout
+    if (volumeTimeoutRef.current) {
+      clearTimeout(volumeTimeoutRef.current);
     }
+    
+    // Debounce the API call to avoid too many requests during dragging
+    volumeTimeoutRef.current = setTimeout(async () => {
+      console.log('🎵 Volume change:', newVolume);
+      
+      if (accessToken) {
+        try {
+          const result = await dispatch(changeVolume({ accessToken, volume: Math.round(newVolume * 100) })).unwrap();
+          console.log('✅ Volume changed successfully:', result);
+        } catch (error) {
+          console.warn('⚠️ Error changing volume:', error);
+          // Revert local volume on error
+          setLocalVolume(volume);
+        }
+      }
+    }, 100); // 100ms debounce
   };
 
   // Handle seek change using player's seek method
@@ -97,22 +126,51 @@ export function Player() {
 
   // Show player even when not active, but with different content
   if (!isActive || !currentTrack) {
+    // Check if something is playing on another device
+    const hasOtherDevicePlaying = nowPlaying.currentTrack && nowPlaying.device && nowPlaying.device.id !== deviceId;
+    
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 p-4 z-50">
         <div className="flex flex-col max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gray-700 rounded flex items-center justify-center">
-                <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.369 4.369 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-white font-medium">No track playing</h3>
-                <p className="text-gray-400 text-sm">
-                  {deviceId ? 'Ready to play' : 'Connecting to Spotify...'}
-                </p>
-              </div>
+              {hasOtherDevicePlaying && nowPlaying.currentTrack && nowPlaying.device ? (
+                // Show track playing on another device
+                <>
+                  <Image
+                    src={nowPlaying.currentTrack.album?.images?.[0]?.url || '/placeholder.png'}
+                    alt={nowPlaying.currentTrack.name}
+                    className="w-16 h-16 rounded"
+                    width={64}
+                    height={64}
+                    priority
+                  />
+                  <div>
+                    <h3 className="text-white font-medium">{nowPlaying.currentTrack.name}</h3>
+                    <p className="text-gray-400 text-sm">
+                      {nowPlaying.currentTrack.artists?.[0]?.name || ''}
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      Playing on {nowPlaying.device.name}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                // Show default state
+                <>
+                  <div className="w-16 h-16 bg-gray-700 rounded flex items-center justify-center">
+                    <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.369 4.369 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-medium">No track playing</h3>
+                    <p className="text-gray-400 text-sm">
+                      {deviceId ? 'Ready to play' : 'Connecting to Spotify...'}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex items-center space-x-4">
@@ -139,28 +197,31 @@ export function Player() {
               </button>
             </div>
 
-                      <div className="flex items-center space-x-4">
-            <DevicePicker />
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={volume}
-              onChange={handleVolumeChange}
-              className="w-20"
-              disabled={!deviceId}
-            />
+            <div className="flex items-center space-x-4">
+              <DevicePicker />
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={localVolume}
+                onChange={handleVolumeChange}
+                className="w-20"
+                disabled={!deviceId}
+              />
+            </div>
           </div>
-          </div>
-          <div className="mt-3">
-            <ProgressBar 
-              value={0} 
-              onChange={() => {}} 
-              variant="track"
-              disabled={true}
-            />
-          </div>
+          
+          {hasOtherDevicePlaying && (
+            <div className="mt-3">
+              <ProgressBar 
+                value={nowPlaying.duration > 0 ? (nowPlaying.progress / nowPlaying.duration) * 100 : 0} 
+                onChange={() => {}} 
+                variant="track"
+                disabled={true}
+              />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -209,9 +270,20 @@ export function Player() {
                 <path d="M4.555 5.168A1 1 0 003 6v8a1 1 0 001.555.832L10 11.202V14a1 1 0 001.555.832l6-4a1 1 0 000-1.664l-6-4A1 1 0 0010 6v2.798l-5.445-3.63z" />
               </svg>
             </button>
+            <button
+              onClick={() => dispatch(togglePlayerSidebar())}
+              className={`p-1 rounded transition-all duration-200 hover:bg-neutral-800 hover:scale-105 active:scale-95 ${
+                showSidebar ? 'text-green-500' : 'text-white hover:text-green-400'
+              }`}
+              title={showSidebar ? "Hide Queue" : "Show Queue"}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 6h18M3 14h10m6 0v6m0 0h-6m6 0l-6-6" />
+              </svg>
+            </button>
           </div>
 
-                            <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4">
             <LikeButton trackId={track.id} size={18} />
             <DevicePicker />
             <input
@@ -219,7 +291,7 @@ export function Player() {
               min="0"
               max="1"
               step="0.01"
-              value={volume}
+              value={localVolume}
               onChange={handleVolumeChange}
               className="w-20"
             />
@@ -233,6 +305,7 @@ export function Player() {
           />
         </div>
       </div>
+      {showSidebar && <PlayerSidebar onClose={() => dispatch(togglePlayerSidebar())} />}
     </div>
   );
 }

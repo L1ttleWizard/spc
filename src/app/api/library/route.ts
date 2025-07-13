@@ -11,7 +11,11 @@ export async function GET(request: NextRequest) {
     
     if (!hasToken) {
       return NextResponse.json(
-        { error: 'Not authenticated', authenticated: false },
+        { 
+          error: 'Spotify connection required',
+          authenticated: false,
+          message: 'Please connect your Spotify account to view your library'
+        },
         { status: 401 }
       );
     }
@@ -36,7 +40,11 @@ export async function GET(request: NextRequest) {
     // Check if it's an authentication error
     if (error instanceof Error && error.message.includes('access token')) {
       return NextResponse.json(
-        { error: 'Not authenticated', authenticated: false },
+        { 
+          error: 'Spotify connection required',
+          authenticated: false,
+          message: 'Please connect your Spotify account to view your library'
+        },
         { status: 401 }
       );
     }

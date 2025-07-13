@@ -61,12 +61,12 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
       setTimeout(() => {
         console.warn('⚠️ AuthInitializer: Timeout reached, forcing null user');
         resolve(null);
-      }, 10000); // 10 second timeout
+      }, 5000); // Reduced timeout to 5 seconds
     });
     
     // Race between auth promise and timeout
     Promise.race([authPromise, timeoutPromise])
-      .then((firebaseUser: unknown) => {
+      .then(async (firebaseUser: unknown) => {
         console.log('🔐 AuthInitializer: Auth state determined', { 
           hasUser: !!firebaseUser, 
           uid: firebaseUser?.uid 
@@ -76,9 +76,28 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
           const userData = extractUserProperties(firebaseUser);
           console.log('🔐 AuthInitializer: Dispatching user data', userData);
           dispatch(setUser(userData));
+          
+          // Set user ID cookie for token management on server side
+          try {
+            await fetch('/api/auth/set-user-id', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ userId: userData.uid }),
+            });
+            console.log('✅ User ID cookie set on server side');
+          } catch (error) {
+            console.warn('⚠️ Failed to set user ID cookie on server side:', error);
+            // Fallback to client-side cookie
+            document.cookie = `user_id=${userData.uid}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+          }
         } else {
           console.log('🔐 AuthInitializer: No user found, dispatching null');
           dispatch(setUser(null));
+          
+          // Remove user ID cookie when user logs out
+          document.cookie = 'user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         }
         
         setIsInitialized(true);
@@ -91,17 +110,7 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
       });
   }, [dispatch]);
 
-  // Show loading while auth is being determined
-  if (!isInitialized) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Initializing authentication...</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Don't block the app while waiting for auth - show children immediately
+  // The auth will initialize in the background
   return <>{children}</>;
 }

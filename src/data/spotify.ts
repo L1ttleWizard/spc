@@ -56,6 +56,10 @@ async function handleSpotifyApiCall<T>(
     return await apiCall();
   } catch (error) {
     console.error(`❌ Error in ${context}:`, error);
+    console.error(`❌ Error type:`, typeof error);
+    console.error(`❌ Error constructor:`, error?.constructor?.name);
+    console.error(`❌ Error message:`, error instanceof Error ? error.message : 'No message');
+    console.error(`❌ Error stack:`, error instanceof Error ? error.stack : 'No stack');
     
     // Handle specific error types
     if (error instanceof Error) {
@@ -71,6 +75,11 @@ async function handleSpotifyApiCall<T>(
       
       if (error.message.includes('401') || error.message.includes('unauthorized')) {
         console.warn(`⚠️ Authentication error in ${context}, returning null`);
+        return null;
+      }
+      
+      if (error.message.includes('404') || error.message.includes('Not Found')) {
+        console.warn(`⚠️ Not Found error in ${context}, returning null`);
         return null;
       }
     }
@@ -99,6 +108,18 @@ export async function getUserLibrary(
     const items: LibraryItem[] = [];
 
     if (!filter || filter === 'playlist') {
+      // Add Liked Songs playlist at the top
+      items.push({
+        id: 'liked-songs',
+        name: 'Liked Songs',
+        type: 'playlist' as const,
+        imageUrl: '/heart-playlist.svg', // Heart icon SVG
+        subtitle: 'Playlist • Your liked songs',
+        creator: 'You',
+        dateAdded: null,
+        lastPlayed: null,
+      });
+
       const playlistsResult = await handleSpotifyApiCall(
         () => spotifyApi.getUserPlaylists({ limit }),
         'getUserPlaylists'
@@ -151,11 +172,177 @@ export async function getUserLibrary(
       items.sort((a, b) => (b.dateAdded?.getTime() || 0) - (a.dateAdded?.getTime() || 0));
     }
 
+    // Ensure Liked Songs playlist is always at the top
+    if (filter === 'playlist' || !filter) {
+      const likedSongsIndex = items.findIndex(item => item.id === 'liked-songs');
+      if (likedSongsIndex > 0) {
+        const likedSongs = items.splice(likedSongsIndex, 1)[0];
+        if (likedSongs) {
+          items.unshift(likedSongs);
+        }
+      }
+    }
+
     setCachedData(cacheKey, items);
     return items;
   } catch (error) {
     console.error('❌ Error fetching user library:', error);
     return [];
+  }
+}
+
+/**
+ * Fetches artist data by ID with full details
+ */
+export async function getArtistById(artistId: string): Promise<SpotifyApi.SingleArtistResponse | null> {
+  const cacheKey = `artist_${artistId}`;
+  const cached = getCachedData<SpotifyApi.SingleArtistResponse>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const spotifyApi = await getSpotifyServerApi();
+    
+    console.log(`🎵 Fetching artist ${artistId}...`);
+    
+    const artistResult = await handleSpotifyApiCall(
+      () => spotifyApi.getArtist(artistId),
+      `getArtistById(${artistId})`
+    );
+    
+    if (!artistResult) {
+      console.log(`❌ Failed to fetch artist ${artistId}`);
+      return null;
+    }
+    
+    console.log(`✅ Successfully fetched artist ${artistId}: ${artistResult.body.name}`);
+    setCachedData(cacheKey, artistResult.body);
+    return artistResult.body;
+    
+  } catch (error) {
+    console.error(`❌ Error fetching artist ${artistId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetches artist's top tracks
+ */
+export async function getArtistTopTracks(artistId: string, market: string = 'US'): Promise<SpotifyApi.ArtistsTopTracksResponse | null> {
+  const cacheKey = `artist_top_tracks_${artistId}_${market}`;
+  const cached = getCachedData<SpotifyApi.ArtistsTopTracksResponse>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const spotifyApi = await getSpotifyServerApi();
+    
+    console.log(`🎵 Fetching top tracks for artist ${artistId}...`);
+    
+    const topTracksResult = await handleSpotifyApiCall(
+      () => spotifyApi.getArtistTopTracks(artistId, market),
+      `getArtistTopTracks(${artistId}, ${market})`
+    );
+    
+    if (!topTracksResult) {
+      console.log(`❌ Failed to fetch top tracks for artist ${artistId}`);
+      return null;
+    }
+    
+    console.log(`✅ Successfully fetched ${topTracksResult.body.tracks.length} top tracks for artist ${artistId}`);
+    setCachedData(cacheKey, topTracksResult.body);
+    return topTracksResult.body;
+    
+  } catch (error) {
+    console.error(`❌ Error fetching top tracks for artist ${artistId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetches artist's albums with pagination
+ */
+export async function getArtistAlbums(artistId: string, includeGroups: string[] = ['album', 'single']): Promise<SpotifyApi.ArtistsAlbumsResponse | null> {
+  const cacheKey = `artist_albums_${artistId}_${includeGroups.join(',')}`;
+  const cached = getCachedData<SpotifyApi.ArtistsAlbumsResponse>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const spotifyApi = await getSpotifyServerApi();
+    
+    console.log(`🎵 Fetching albums for artist ${artistId}...`);
+    
+    const albumsResult = await handleSpotifyApiCall(
+      () => spotifyApi.getArtistAlbums(artistId, { 
+        include_groups: includeGroups.join(','),
+        limit: 50
+      }),
+      `getArtistAlbums(${artistId})`
+    );
+    
+    if (!albumsResult) {
+      console.log(`❌ Failed to fetch albums for artist ${artistId}`);
+      return null;
+    }
+    
+    console.log(`✅ Successfully fetched ${albumsResult.body.items.length} albums for artist ${artistId}`);
+    setCachedData(cacheKey, albumsResult.body);
+    return albumsResult.body;
+    
+  } catch (error) {
+    console.error(`❌ Error fetching albums for artist ${artistId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetches related artists
+ */
+export async function getRelatedArtists(artistId: string): Promise<SpotifyApi.ArtistsRelatedArtistsResponse | null> {
+  const cacheKey = `related_artists_${artistId}`;
+  const cached = getCachedData<SpotifyApi.ArtistsRelatedArtistsResponse>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const spotifyApi = await getSpotifyServerApi();
+    
+    console.log(`🎵 Fetching related artists for ${artistId}...`);
+    
+    console.log(`🔍 Calling handleSpotifyApiCall for related artists of ${artistId}...`);
+    const relatedResult = await handleSpotifyApiCall(
+      () => spotifyApi.getArtistRelatedArtists(artistId),
+      `getRelatedArtists(${artistId})`
+    );
+    
+    console.log(`🔍 handleSpotifyApiCall result for ${artistId}:`, {
+      hasResult: !!relatedResult,
+      hasBody: !!relatedResult?.body,
+      hasArtists: !!relatedResult?.body?.artists,
+      artistsLength: relatedResult?.body?.artists?.length || 0
+    });
+    
+    if (!relatedResult) {
+      console.log(`❌ Failed to fetch related artists for ${artistId} - handleSpotifyApiCall returned null`);
+      return null;
+    }
+    
+    console.log(`✅ Successfully fetched ${relatedResult.body.artists.length} related artists for ${artistId}`);
+    setCachedData(cacheKey, relatedResult.body);
+    return relatedResult.body;
+    
+  } catch (error) {
+    console.error(`❌ Error fetching related artists for ${artistId}:`, error);
+    return null;
   }
 }
 
@@ -190,7 +377,7 @@ export async function getAlbumById(albumId: string): Promise<SpotifyApi.SingleAl
 }
 
 /**
- * Fetches playlist data with enhanced error handling
+ * Fetches playlist data with ALL tracks using pagination
  */
 export async function getPlaylistById(playlistId: string): Promise<SpotifyApi.SinglePlaylistResponse | null> {
   const cacheKey = `playlist_${playlistId}`;
@@ -202,25 +389,98 @@ export async function getPlaylistById(playlistId: string): Promise<SpotifyApi.Si
 
   try {
     const spotifyApi = await getSpotifyServerApi();
+    
+    console.log(`🎵 Fetching playlist ${playlistId} with ALL tracks using pagination...`);
+    
+    // First, get the playlist metadata
     const playlistResult = await handleSpotifyApiCall(
       () => spotifyApi.getPlaylist(playlistId),
-      `getPlaylistById(${playlistId})`
+      `getPlaylistById_initial(${playlistId})`
     );
     
-    if (playlistResult) {
+    if (!playlistResult) {
+      console.log(`❌ Failed to fetch playlist ${playlistId}`);
+      return null;
+    }
+    
+    const totalTracks = playlistResult.body.tracks.total;
+    console.log(`📊 Playlist ${playlistId} has ${totalTracks} total tracks`);
+    
+    // If we have 100 or fewer tracks, return the initial result
+    if (totalTracks <= 100) {
+      console.log(`✅ All ${totalTracks} tracks fetched in single request`);
       setCachedData(cacheKey, playlistResult.body);
       return playlistResult.body;
     }
     
-    return null;
+    // For more than 100 tracks, we need to fetch all pages
+    const allTracks: SpotifyApi.PlaylistTrackObject[] = [...playlistResult.body.tracks.items];
+    const totalPages = Math.ceil(totalTracks / 100);
+    
+    console.log(`📄 Fetching ${totalPages - 1} additional pages for playlist ${playlistId}...`);
+    
+    // Fetch remaining pages (starting from offset 100)
+    for (let page = 1; page < totalPages; page++) {
+      const offset = page * 100;
+      
+      // Add delay between requests to respect rate limits
+      if (page > 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      console.log(`📄 Fetching page ${page + 1}/${totalPages} (offset: ${offset}) for playlist ${playlistId}`);
+      
+      const pageResult = await handleSpotifyApiCall(
+        () => spotifyApi.getPlaylistTracks(playlistId, { 
+          limit: 100,
+          offset: offset
+        }),
+        `getPlaylistTracks_page_${page}_${playlistId}`
+      );
+      
+      if (pageResult && pageResult.body.items.length > 0) {
+        allTracks.push(...pageResult.body.items);
+        console.log(`✅ Page ${page + 1}: fetched ${pageResult.body.items.length} tracks for playlist ${playlistId}`);
+      } else {
+        console.warn(`⚠️ Page ${page + 1}: no tracks returned for playlist ${playlistId}`);
+        break; // Stop if we get an empty page
+      }
+    }
+    
+    // Create the complete playlist response object
+    const completePlaylist: SpotifyApi.SinglePlaylistResponse = {
+      ...playlistResult.body,
+      tracks: {
+        ...playlistResult.body.tracks,
+        items: allTracks,
+        total: allTracks.length
+      }
+    };
+    
+    console.log(`✅ Successfully fetched ALL ${allTracks.length} tracks for playlist ${playlistId} from ${totalPages} pages`);
+    setCachedData(cacheKey, completePlaylist);
+    return completePlaylist;
+    
   } catch (error) {
     console.error(`❌ Error fetching playlist ${playlistId}:`, error);
+    
+    // Log specific error details for debugging
+    if (error instanceof Error) {
+      if (error.message.includes('401')) {
+        console.error('🔑 Authentication error - user needs to reconnect Spotify');
+      } else if (error.message.includes('403')) {
+        console.error('🚫 Permission denied - missing playlist-read scope');
+      } else if (error.message.includes('429')) {
+        console.error('⏱️ Rate limited - too many requests');
+      }
+    }
+    
     return null;
   }
 }
 
 /**
- * Fetches liked songs with enhanced error handling
+ * Fetches ALL liked songs using pagination with enhanced error handling
  */
 export async function getLikedSongs(): Promise<SpotifyApi.UsersSavedTracksResponse | null> {
   const cacheKey = 'liked_songs';
@@ -232,19 +492,93 @@ export async function getLikedSongs(): Promise<SpotifyApi.UsersSavedTracksRespon
 
   try {
     const spotifyApi = await getSpotifyServerApi();
-    const likedSongsResult = await handleSpotifyApiCall(
-      () => spotifyApi.getMySavedTracks({ limit: CACHE_CONFIG.MAX_TRACKS }),
-      'getLikedSongs'
+    
+    console.log('🎵 Fetching ALL liked songs from Spotify API using pagination...');
+    
+    // First, get the initial batch to determine total count
+    const initialResult = await handleSpotifyApiCall(
+      () => spotifyApi.getMySavedTracks({ 
+        limit: 50, // API maximum per request
+        market: 'RU'
+      }),
+      'getLikedSongs_initial'
     );
     
-    if (likedSongsResult) {
-      setCachedData(cacheKey, likedSongsResult.body);
-      return likedSongsResult.body;
+    if (!initialResult) {
+      console.log('❌ Failed to fetch initial liked songs batch');
+      return null;
     }
     
-    return null;
+    const totalTracks = initialResult.body.total;
+    console.log(`📊 Total liked songs: ${totalTracks}`);
+    
+    // If we have 50 or fewer tracks, return the initial result
+    if (totalTracks <= 50) {
+      console.log(`✅ All ${totalTracks} liked songs fetched in single request`);
+      setCachedData(cacheKey, initialResult.body);
+      return initialResult.body;
+    }
+    
+    // For more than 50 tracks, we need to fetch all pages
+    const allItems: SpotifyApi.SavedTrackObject[] = [...initialResult.body.items];
+    const totalPages = Math.ceil(totalTracks / 50);
+    
+    console.log(`📄 Fetching ${totalPages - 1} additional pages...`);
+    
+    // Fetch remaining pages (starting from offset 50)
+    for (let page = 1; page < totalPages; page++) {
+      const offset = page * 50;
+      
+      // Add delay between requests to respect rate limits
+      if (page > 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      console.log(`📄 Fetching page ${page + 1}/${totalPages} (offset: ${offset})`);
+      
+      const pageResult = await handleSpotifyApiCall(
+        () => spotifyApi.getMySavedTracks({ 
+          limit: 50,
+          offset: offset,
+          market: 'RU'
+        }),
+        `getLikedSongs_page_${page}`
+      );
+      
+      if (pageResult && pageResult.body.items.length > 0) {
+        allItems.push(...pageResult.body.items);
+        console.log(`✅ Page ${page + 1}: fetched ${pageResult.body.items.length} tracks`);
+      } else {
+        console.warn(`⚠️ Page ${page + 1}: no tracks returned`);
+        break; // Stop if we get an empty page
+      }
+    }
+    
+    // Create the complete response object
+    const completeResponse: SpotifyApi.UsersSavedTracksResponse = {
+      ...initialResult.body,
+      items: allItems,
+      total: allItems.length
+    };
+    
+    console.log(`✅ Successfully fetched ALL ${allItems.length} liked songs from ${totalPages} pages`);
+    setCachedData(cacheKey, completeResponse);
+    return completeResponse;
+    
   } catch (error) {
     console.error('❌ Error fetching liked songs:', error);
+    
+    // Log specific error details for debugging
+    if (error instanceof Error) {
+      if (error.message.includes('401')) {
+        console.error('🔑 Authentication error - user needs to reconnect Spotify');
+      } else if (error.message.includes('403')) {
+        console.error('🚫 Permission denied - missing user-library-read scope');
+      } else if (error.message.includes('429')) {
+        console.error('⏱️ Rate limited - too many requests');
+      }
+    }
+    
     return null;
   }
 }
@@ -296,6 +630,9 @@ export async function getMainContentData() {
       console.log(`✅ Fetched ${data.playlists.length} playlists`);
     } else {
       console.warn('⚠️ Failed to fetch playlists');
+      if (playlistsResult.status === 'rejected') {
+        console.error('❌ Playlists error:', playlistsResult.reason);
+      }
     }
 
     if (isFulfilled(savedAlbumsResult) && savedAlbumsResult.value) {
@@ -303,6 +640,15 @@ export async function getMainContentData() {
       console.log(`✅ Fetched ${data.albums.length} saved albums`);
     } else {
       console.warn('⚠️ Failed to fetch saved albums');
+      if (savedAlbumsResult.status === 'rejected') {
+        const error = savedAlbumsResult.reason;
+        console.error('❌ Saved albums error:', error);
+        
+        // Check if it's a scope error
+        if (error instanceof Error && error.message.includes('Insufficient client scope')) {
+          console.error('🚫 Scope error: user-library-read permission required');
+        }
+      }
     }
 
     if (isFulfilled(newReleasesResult) && newReleasesResult.value) {
@@ -310,6 +656,9 @@ export async function getMainContentData() {
       console.log(`✅ Fetched ${data.newReleases.length} new releases`);
     } else {
       console.warn('⚠️ Failed to fetch new releases');
+      if (newReleasesResult.status === 'rejected') {
+        console.error('❌ New releases error:', newReleasesResult.reason);
+      }
     }
 
     setCachedData(cacheKey, data);
@@ -368,5 +717,29 @@ export async function searchSpotify(q: string, accessToken: string) {
   } catch (e) {
     console.error('❌ Spotify search error:', e);
     return { tracks: [], albums: [], artists: [], playlists: [] };
+  }
+}
+
+/**
+ * Non-blocking function to preload all liked songs in the background
+ * This can be called without waiting for the result
+ */
+export async function preloadLikedSongs(): Promise<void> {
+  try {
+    console.log('🔄 Starting background preload of liked songs...');
+    
+    // Don't await this - let it run in the background
+    getLikedSongs().then(result => {
+      if (result) {
+        console.log('✅ Background preload of liked songs completed successfully');
+      } else {
+        console.log('❌ Background preload of liked songs failed');
+      }
+    }).catch(error => {
+      console.error('❌ Background preload of liked songs error:', error);
+    });
+    
+  } catch (error) {
+    console.error('❌ Error starting background preload:', error);
   }
 }

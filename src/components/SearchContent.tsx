@@ -4,12 +4,13 @@ import React from 'react';
 import Link from 'next/link';
 import { useSpotifyPlayerContext } from './SpotifyPlayerProvider';
 import { Play } from 'lucide-react';
+import ArtistLink from './ArtistLink';
 
 interface Track {
   id: string;
   name: string;
   duration_ms: number;
-  artists: { name: string }[];
+  artists: { id: string; name: string }[];
   album: {
     name: string;
     images: { url: string }[];
@@ -60,13 +61,13 @@ function TopResult({ track, album, artist, onTrackClick }: any) {
   // Pick the best match: prefer artist > track > album if available
   if (artist) {
     return (
-      <div className="bg-neutral-900 rounded-lg p-6 flex items-center gap-6 mb-8">
+      <Link href={`/artist/${artist.id}`} className="bg-neutral-900 rounded-lg p-6 flex items-center gap-6 mb-8 hover:bg-neutral-800 transition">
         <img src={artist.images?.[0]?.url || '/file.svg'} alt={artist.name} className="w-24 h-24 rounded-full object-cover" />
         <div>
           <div className="text-lg font-bold">{artist.name}</div>
           <div className="text-sm text-neutral-400">Artist</div>
         </div>
-      </div>
+      </Link>
     );
   }
   if (track) {
@@ -84,7 +85,16 @@ function TopResult({ track, album, artist, onTrackClick }: any) {
         </div>
         <div>
           <div className="text-lg font-bold">{track.name}</div>
-          <div className="text-sm text-neutral-400">{track.artists?.map((a: any) => a.name).join(', ')}</div>
+          <div className="text-sm text-neutral-400">
+            {track.artists?.map((artist: any, index: number) => (
+              <React.Fragment key={artist.id}>
+                <ArtistLink artist={artist} className="text-neutral-400 hover:text-white">
+                  {artist.name}
+                </ArtistLink>
+                {index < track.artists.length - 1 && ', '}
+              </React.Fragment>
+            ))}
+          </div>
           <div className="text-xs text-neutral-500 mt-1">Song</div>
         </div>
       </div>
@@ -97,7 +107,16 @@ function TopResult({ track, album, artist, onTrackClick }: any) {
         <div>
           <div className="text-lg font-bold">{album.name}</div>
           <div className="text-sm text-neutral-400">Album</div>
-          <div className="text-xs text-neutral-500 mt-1">{album.artists?.map((a: any) => a.name).join(', ')}</div>
+          <div className="text-xs text-neutral-500 mt-1">
+            {album.artists?.map((artist: any, index: number) => (
+              <React.Fragment key={artist.id}>
+                <ArtistLink artist={artist} className="text-neutral-400 hover:text-white">
+                  {artist.name}
+                </ArtistLink>
+                {index < album.artists.length - 1 && ', '}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -231,7 +250,16 @@ export default function SearchContent({ q, data }: SearchContentProps) {
                   </div>
                   <div className="flex-1">
                     <div className="font-medium text-white truncate">{track?.name || 'Unknown Track'}</div>
-                    <div className="text-xs text-neutral-400 truncate">{track?.artists?.map((a: any) => a?.name || 'Unknown').join(', ')}</div>
+                    <div className="text-xs text-neutral-400 truncate">
+                      {track?.artists?.map((artist: any, index: number) => (
+                        <React.Fragment key={artist.id}>
+                          <ArtistLink artist={artist} className="text-neutral-400 hover:text-white">
+                            {artist?.name || 'Unknown'}
+                          </ArtistLink>
+                          {index < track.artists.length - 1 && ', '}
+                        </React.Fragment>
+                      ))}
+                    </div>
                   </div>
                   <div className="text-xs text-neutral-500">{Math.floor((track?.duration_ms || 0) / 60000)}:{((Math.floor((track?.duration_ms || 0) / 1000) % 60)).toString().padStart(2, '0')}</div>
                 </div>
@@ -256,7 +284,16 @@ export default function SearchContent({ q, data }: SearchContentProps) {
                     </div>
                   </div>
                   <div className="font-medium text-white truncate">{album?.name || 'Unknown Album'}</div>
-                  <div className="text-xs text-neutral-400 truncate">{album?.artists?.map((a: any) => a?.name || 'Unknown').join(', ')}</div>
+                  <div className="text-xs text-neutral-400 truncate">
+                    {album?.artists?.map((artist: any, index: number) => (
+                      <React.Fragment key={artist.id}>
+                        <ArtistLink artist={artist} className="text-neutral-400 hover:text-white">
+                          {artist?.name || 'Unknown'}
+                        </ArtistLink>
+                        {index < album.artists.length - 1 && ', '}
+                      </React.Fragment>
+                    ))}
+                  </div>
                 </Link>
               ))}
             </div>
@@ -268,11 +305,11 @@ export default function SearchContent({ q, data }: SearchContentProps) {
           {data.artists && data.artists.length > 0 ? (
             <div className="flex gap-4 mb-8 overflow-x-auto">
               {data.artists.filter((artist: any) => artist && artist.id).map((artist: any) => (
-                <div key={artist.id} className="w-32 flex-shrink-0 flex flex-col items-center bg-neutral-900 rounded-lg p-2 hover:bg-neutral-800 transition">
+                <Link key={artist.id} href={`/artist/${artist.id}`} className="w-32 flex-shrink-0 flex flex-col items-center bg-neutral-900 rounded-lg p-2 hover:bg-neutral-800 transition">
                   <img src={artist?.images?.[0]?.url || '/file.svg'} alt={artist?.name || 'Artist'} className="w-24 h-24 rounded-full object-cover mb-2" />
                   <div className="font-medium text-white truncate text-center">{artist?.name || 'Unknown Artist'}</div>
                   <div className="text-xs text-neutral-400 truncate">Artist</div>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (
@@ -292,7 +329,16 @@ export default function SearchContent({ q, data }: SearchContentProps) {
                     </div>
                   </div>
                   <div className="font-medium text-white truncate">{album?.name || 'Unknown Album'}</div>
-                  <div className="text-xs text-neutral-400 truncate">{album?.artists?.map((a: any) => a?.name || 'Unknown').join(', ')}</div>
+                  <div className="text-xs text-neutral-400 truncate">
+                    {album?.artists?.map((artist: any, index: number) => (
+                      <React.Fragment key={artist.id}>
+                        <ArtistLink artist={artist} className="text-neutral-400 hover:text-white">
+                          {artist?.name || 'Unknown'}
+                        </ArtistLink>
+                        {index < album.artists.length - 1 && ', '}
+                      </React.Fragment>
+                    ))}
+                  </div>
                 </Link>
               ))}
             </div>

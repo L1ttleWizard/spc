@@ -4,12 +4,13 @@ import React from 'react';
 import Image from 'next/image';
 import { Play } from 'lucide-react';
 import LikeButton from './LikeButton';
+import ArtistLink from './ArtistLink';
 
 interface Track {
   id: string;
   name: string;
   duration_ms: number;
-  artists: { name: string }[];
+  artists: { id: string; name: string }[];
   album: {
     name: string;
     images: { url: string }[];
@@ -59,7 +60,14 @@ const TrackList = ({ tracks, onTrackClick }: TrackListProps) => {
           <div className="flex-1">
             <p className="font-medium truncate text-white">{track.name}</p>
             <p className="text-neutral-400 text-sm truncate">
-              {track.artists.map((artist) => artist.name).join(', ')}
+              {track.artists.map((artist, index) => (
+                <React.Fragment key={artist.id}>
+                  <ArtistLink artist={artist} className="text-neutral-400 hover:text-white">
+                    {artist.name}
+                  </ArtistLink>
+                  {index < track.artists.length - 1 && ', '}
+                </React.Fragment>
+              ))}
             </p>
           </div>
           

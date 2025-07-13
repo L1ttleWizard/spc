@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { API_URLS, ERROR_MESSAGES } from '@/constants';
 import { SPOTIFY_CONFIG } from '@/lib/spotify';
 import { handleError, ErrorType, logError } from '@/lib/error-handler';
+import { storeSpotifyTokens } from '@/lib/firebase';
 
 /**
  * Exchanges authorization code for access and refresh tokens
@@ -47,7 +48,8 @@ function setTokenCookies(
   response: NextResponse,
   accessToken: string,
   refreshToken: string,
-  expiresIn: number
+  expiresIn: number,
+  userId?: string
 ): NextResponse {
   const isProduction = process.env.NODE_ENV === 'production';
   
@@ -69,6 +71,17 @@ function setTokenCookies(
     maxAge: 60 * 60 * 24 * 30, // 30 days
   });
 
+  // Set user ID cookie if provided
+  if (userId) {
+    response.cookies.set('user_id', userId, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
+  }
+
   return response;
 }
 
@@ -77,6 +90,11 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code');
   const error = searchParams.get('error');
   const state = searchParams.get('state');
+  // Parse user ID from state parameter
+  let userId: string | null = null;
+  if (state && state.startsWith('user_id=')) {
+    userId = state.replace('user_id=', '');
+  }
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3000';
   const redirectUri = SPOTIFY_CONFIG.redirectUri;
@@ -118,9 +136,20 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(baseUrl);
     
     // Set secure cookies using Next.js native method
-    setTokenCookies(response, access_token, refresh_token, expires_in);
+    setTokenCookies(response, access_token, refresh_token, expires_in, userId);
 
-    console.log('✅ Successfully set Spotify tokens in cookies');
+    // Store tokens in Firestore if we have a user ID
+    if (userId) {
+      try {
+        await storeSpotifyTokens(userId, access_token, refresh_token, expires_in);
+        console.log('✅ Spotify tokens stored in Firestore for user:', userId);
+      } catch (firestoreError) {
+        console.error('⚠️ Failed to store tokens in Firestore, but continuing with cookie storage:', firestoreError);
+        // Don't fail the entire flow if Firestore storage fails
+      }
+    }
+
+    console.log('✅ Successfully set Spotify tokens in cookies and Firestore');
     return response;
 
   } catch (err) {

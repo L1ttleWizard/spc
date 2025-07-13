@@ -9,7 +9,7 @@ interface Track {
   id: string;
   name: string;
   duration_ms: number;
-  artists: { name: string }[];
+  artists: { id: string; name: string }[];
   album: {
     name: string;
     images: { url: string }[];
@@ -18,11 +18,12 @@ interface Track {
 }
 
 interface ContentPageClientProps {
-  type: 'playlist' | 'album';
+  type: 'playlist' | 'album' | 'artist';
   name: string;
   imageUrl?: string | undefined;
   owner?: string | undefined;
   artist?: string | undefined;
+  artistId?: string | undefined;
   trackCount: number;
   followers?: number | undefined;
   tracks: Track[];
@@ -35,6 +36,7 @@ export default function ContentPageClient({
   imageUrl,
   owner,
   artist,
+  artistId,
   trackCount,
   followers,
   tracks,
@@ -117,6 +119,7 @@ export default function ContentPageClient({
         imageUrl={imageUrl}
         owner={owner}
         artist={artist}
+        artistId={artistId}
         trackCount={trackCount}
         followers={followers}
         onPlay={handlePlayAll}

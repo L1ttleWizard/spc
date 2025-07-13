@@ -3,15 +3,17 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import ArtistLink from './ArtistLink';
 
 interface AlbumCardProps {
   name: string;
   artist: string;
+  artistId?: string;
   imageUrl?: string | null;
   id?: string;
 }
 
-export default function AlbumCard({ name, artist, imageUrl, id }: AlbumCardProps) {
+export default function AlbumCard({ name, artist, artistId, imageUrl, id }: AlbumCardProps) {
   const CardContent = () => (
     <div className="bg-neutral-800/50 hover:bg-neutral-800/70 rounded-lg p-4 transition-colors cursor-pointer group">
       <div className="aspect-square mb-4 relative">
@@ -32,7 +34,15 @@ export default function AlbumCard({ name, artist, imageUrl, id }: AlbumCardProps
         )}
       </div>
       <h3 className="font-semibold truncate mb-1 group-hover:underline">{name}</h3>
-      <p className="text-sm text-neutral-400 truncate">{artist}</p>
+      <p className="text-sm text-neutral-400 truncate">
+        {artistId ? (
+          <ArtistLink artist={{ id: artistId, name: artist }} className="text-neutral-400 hover:text-white">
+            {artist}
+          </ArtistLink>
+        ) : (
+          artist
+        )}
+      </p>
     </div>
   );
 

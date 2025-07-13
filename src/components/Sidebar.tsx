@@ -54,8 +54,9 @@ export default function Sidebar({ items, currentSort, currentFilter }: SidebarPr
   const activeSortLabel = sortOptions.find(opt => opt.value === sort)?.label;
   
   return (
-    <aside className="text-gray-400 bg-black fixed left-0 top-0 z-20 h-screen w-72 p-2 hidden md:block">
-      <div className="bg-neutral-900 rounded-lg p-4 space-y-4">
+    <aside className="text-gray-400 bg-black fixed left-0 top-0 z-20 h-screen w-72 p-2 hidden md:block flex flex-col">
+      {/* Fixed top section */}
+      <div className="bg-neutral-900 rounded-lg p-4 space-y-4 flex-shrink-0">
         <Link href="/" className="flex items-center gap-4 text-white font-bold">
           <Home size={24} />
           <span>Главная</span>
@@ -66,15 +67,16 @@ export default function Sidebar({ items, currentSort, currentFilter }: SidebarPr
         </Link>
       </div>
 
-      <div className="bg-neutral-900 rounded-lg mt-2 p-2 flex-grow flex flex-col">
-        <div className="flex items-center justify-between p-2">
+      {/* Scrollable library section */}
+      <div className="bg-neutral-900 rounded-lg mt-2 p-2 flex-1 flex flex-col min-h-0">
+        <div className="flex items-center justify-between p-2 flex-shrink-0">
             <button className="flex items-center gap-4 hover:text-white transition-colors w-full">
                 <Library size={24} />
                 <span className="font-semibold">Медиатека</span>
             </button>
         </div>
         
-        <div className="px-2 mb-2">
+        <div className="px-2 mb-2 flex-shrink-0">
           <div className="flex gap-2 mb-4">
             <button 
               onClick={() => handleFilterClick('playlist')} 
@@ -142,7 +144,8 @@ export default function Sidebar({ items, currentSort, currentFilter }: SidebarPr
           </div>
         </div>
         
-        <div className={`mt-2 space-y-1 px-2 overflow-y-auto transition-opacity ${isPending ? 'opacity-50' : 'opacity-100'}`}>
+        {/* Scrollable items container */}
+        <div className={`flex-1 overflow-y-auto min-h-0 space-y-1 px-2 transition-opacity ${isPending ? 'opacity-50' : 'opacity-100'}`}>
           {items && items.length > 0 ? (
             items.map((item) => (
               <Link 

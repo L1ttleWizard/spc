@@ -347,8 +347,8 @@ export function useSpotifyPlayer() {
       return;
     }
 
-    console.log('🎵 Dispatching playPlaylist thunk');
-    dispatch(playPlaylistThunk({ accessToken, deviceId: currentDeviceId, playlistUri }));
+    console.log('🎵 Dispatching playPlaylist thunk with trackIndex:', trackIndex);
+    dispatch(playPlaylistThunk({ accessToken, deviceId: currentDeviceId, playlistUri, trackIndex }));
   }, [currentDeviceId, accessToken, dispatch]);
 
   const togglePlay = useCallback(async () => {
@@ -446,7 +446,7 @@ export function useSpotifyPlayer() {
     
     try {
       console.log('🎵 Fetching queue from Spotify API...');
-      await dispatch(getQueue({ accessToken, deviceId: currentDeviceId || undefined })).unwrap();
+      await dispatch(getQueue({ accessToken, deviceId: currentDeviceId })).unwrap();
     } catch (error) {
       console.warn('⚠️ Error fetching queue:', error);
     }
@@ -507,18 +507,23 @@ export function useSpotifyPlayer() {
       refreshInterval = setInterval(() => {
         console.log('🔄 Refreshing playback state...');
         dispatch(getMyCurrentPlaybackState(accessToken));
-      }, 1000); // Refresh every 1 second
+      }, 3000); // Refresh every 3 seconds instead of 1
       
       // Fetch queue when player becomes active
       fetchQueue();
       
-      // Refresh devices more frequently when player is active
+      // Also trigger enhanced queue refresh with longer delay
+      setTimeout(() => {
+        fetchQueue();
+      }, 5000); // Longer delay to ensure playback state is stable
+      
+      // Refresh devices less frequently when player is active
       deviceRefreshInterval = setInterval(() => {
         console.log('📱 Refreshing devices...');
         fetchAvailableDevices();
-      }, 2000); // Refresh devices every 2 seconds
+      }, 10000); // Refresh devices every 10 seconds instead of 2
       
-      // Update seek position more frequently for smooth progress bar
+      // Update seek position less frequently for better performance
       seekUpdateInterval = setInterval(() => {
         if (playerInstanceRef.current) {
           playerInstanceRef.current.getCurrentState().then((state) => {
@@ -530,13 +535,13 @@ export function useSpotifyPlayer() {
             console.warn('⚠️ Error getting current state for seek update:', error);
           });
         }
-      }, 1000); // Update seek position every 1 second
+      }, 2000); // Update seek position every 2 seconds instead of 1
     } else if (accessToken && currentDeviceId) {
       // Still fetch devices even when not active, but less frequently
       deviceRefreshInterval = setInterval(() => {
         console.log('📱 Refreshing devices (inactive)...');
         fetchAvailableDevices();
-      }, 1000); // Refresh devices every 10 seconds when inactive
+      }, 30000); // Refresh devices every 30 seconds when inactive
     }
 
     return () => {

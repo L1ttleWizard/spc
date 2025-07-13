@@ -7,14 +7,22 @@ export async function GET() {
     const accessToken = await cookieStore.get('spotify_access_token');
 
     if (!accessToken || !accessToken.value) {
-      console.log('❌ No access token found in cookies');
-      return NextResponse.json({ error: 'No access token found' }, { status: 401 });
+      // Don't log this as an error since it's expected when user hasn't connected Spotify
+      return NextResponse.json({ 
+        authenticated: false,
+        message: 'No Spotify tokens found - user needs to connect Spotify'
+      }, { status: 401 });
     }
 
-    console.log('✅ Access token found in session');
-    return NextResponse.json({ accessToken: accessToken.value });
+    return NextResponse.json({ 
+      authenticated: true,
+      accessToken: accessToken.value 
+    });
   } catch (error) {
     console.error('❌ Error in session route:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      authenticated: false
+    }, { status: 500 });
   }
 }

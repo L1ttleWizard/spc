@@ -5,7 +5,7 @@
 // Library types
 export type LibrarySortType = 'recents' | 'added' | 'alpha' | 'creator';
 export type LibraryFilterType = 'playlist' | 'album';
-export type ContentType = 'playlist' | 'album' | 'track';
+export type ContentType = 'playlist' | 'album' | 'track' | 'artist';
 
 // Library item interface
 export interface LibraryItem {
@@ -41,8 +41,13 @@ export interface SimpleTrack {
 }
 
 export interface SimpleArtist {
+  readonly id: string;
   readonly name: string;
   readonly uri: string;
+  readonly images?: ReadonlyArray<SpotifyImage>;
+  readonly followers?: number;
+  readonly genres?: ReadonlyArray<string>;
+  readonly popularity?: number;
 }
 
 export interface SimpleAlbum {

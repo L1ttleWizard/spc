@@ -89,6 +89,20 @@ body {
   animation: fadeIn 0.3s ease-out;
 }
 
+/* Анимация для боковой панели плеера */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
 /* Улучшенные hover эффекты */
 .hover-lift {
   transition: transform 0.2s ease-out;

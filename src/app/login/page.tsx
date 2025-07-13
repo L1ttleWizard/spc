@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { setUser } from '@/redux/slices/userSlice';
-
+import { RootState } from '@/redux/store';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,6 +16,19 @@ export default function LoginPage() {
 
   const router = useRouter();
   const dispatch = useDispatch();
+  
+  // Get current user ID from Redux state at the top level
+  const currentUser = useSelector((state: RootState) => state.user.user);
+
+  const handleSpotifyLogin = () => {
+    if (currentUser?.uid) {
+      // If user is logged in, include their ID in the Spotify login
+      window.location.href = `/api/auth/login?user_id=${currentUser.uid}`;
+    } else {
+      // If no user is logged in, redirect to Spotify login without user ID
+      window.location.href = '/api/auth/login';
+    }
+  };
 
   const handleAuth = async (isRegister: boolean) => {
     setError(null);
@@ -69,52 +82,75 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <form onSubmit={(e) => e.preventDefault()} className="p-8 bg-gray-800 rounded-lg shadow-lg w-full max-w-sm space-y-6">
+      <div className="p-8 bg-gray-800 rounded-lg shadow-lg w-full max-w-sm space-y-6">
         <h1 className="text-3xl font-bold text-center text-white">Войти</h1>
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-300">Email</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-300">Пароль</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
-            required
-          />
-        </div>
         
-        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-        
-        <div className="flex flex-col space-y-4">
+        {/* Spotify Login Button */}
+        <div className="space-y-4">
           <button
-            onClick={() => handleAuth(false)}
-            disabled={isLoading}
-            className="w-full py-2 px-4 border border-transparent rounded-full shadow-sm text-sm font-bold text-black bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 focus:ring-offset-gray-800 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleSpotifyLogin}
+            className="w-full py-3 px-4 border border-transparent rounded-full shadow-sm text-sm font-bold text-white bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 focus:ring-offset-gray-800 transition-transform transform hover:scale-105"
           >
-            {isLoading ? 'Вход...' : 'Войти'}
+            🎵 Подключить Spotify
           </button>
-          <button
-            onClick={() => handleAuth(true)}
-            disabled={isLoading}
-            className="w-full py-2 px-4 border border-gray-500 rounded-full shadow-sm text-sm font-bold text-white bg-transparent hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 focus:ring-offset-gray-800 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
-          </button>
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-600"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-gray-800 text-gray-400">или</span>
+            </div>
+          </div>
         </div>
-      </form>
+
+        {/* Firebase Authentication Form */}
+        <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-300">Email</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-300">Пароль</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              required
+            />
+          </div>
+          
+          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+          
+          <div className="flex flex-col space-y-4">
+            <button
+              onClick={() => handleAuth(false)}
+              disabled={isLoading}
+              className="w-full py-2 px-4 border border-transparent rounded-full shadow-sm text-sm font-bold text-black bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 focus:ring-offset-gray-800 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Вход...' : 'Войти'}
+            </button>
+            <button
+              onClick={() => handleAuth(true)}
+              disabled={isLoading}
+              className="w-full py-2 px-4 border border-gray-500 rounded-full shadow-sm text-sm font-bold text-white bg-transparent hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 focus:ring-offset-gray-800 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

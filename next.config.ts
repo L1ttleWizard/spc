@@ -49,6 +49,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Fix webpack cache issues
+  webpack: (config, { dev, isServer }) => {
+    if (dev) {
+      // Disable webpack caching in development
+      config.cache = false;
+    }
+    return config;
+  },
   // Remove the problematic Permissions-Policy header that uses unsupported features
   experimental: {
    

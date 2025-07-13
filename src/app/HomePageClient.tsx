@@ -1,11 +1,14 @@
 "use client";
 
+import React from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import HorizontalScrollContainer from '@/components/HorizontalScrollContainer';
+import NowPlayingCard from '@/components/NowPlayingCard';
+import ArtistLink from '@/components/ArtistLink';
 import { RootState } from '@/redux/store';
 
 type UserPlaylist = SpotifyApi.PlaylistObjectSimplified;
@@ -23,6 +26,7 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
   const userStatus = useSelector((state: RootState) => state.user.status);
   const userError = useSelector((state: RootState) => state.user.error);
   const router = useRouter();
+  const [authTimeout, setAuthTimeout] = useState(false);
   
   console.log('🏠 HomePageClient:', { 
     hasFirebaseUser: !!user, 
@@ -34,16 +38,31 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
     newReleases: newReleases?.length 
   });
   
-  // Show loading while auth state is being determined
-  const isLoading = userStatus === 'loading';
+  // Set a timeout for auth loading to prevent infinite loading
+  useEffect(() => {
+    if (userStatus === 'loading') {
+      const timer = setTimeout(() => {
+        console.log('⚠️ Auth loading timeout, proceeding without Firebase auth');
+        setAuthTimeout(true);
+      }, 3000); // 3 second timeout
+      
+      return () => clearTimeout(timer);
+    } else {
+      setAuthTimeout(false);
+    }
+  }, [userStatus]);
+
+  // Show loading only briefly while auth state is being determined
+  const isLoading = userStatus === 'loading' && !authTimeout;
 
   useEffect(() => {
     // Only redirect if auth state is determined and user is null
-    if (userStatus !== 'loading' && user === null) {
+    // Don't redirect if we're in timeout mode (Firebase not configured)
+    if (userStatus !== 'loading' && user === null && !authTimeout) {
       console.log('🔐 No Firebase user, redirecting to login');
       router.replace('/login');
     }
-  }, [user, userStatus, router]);
+  }, [user, userStatus, router, authTimeout]);
 
   if (isLoading) {
     return (
@@ -56,13 +75,13 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
     );
   }
 
-  // Don't render anything if user is null (will redirect)
-  if (user === null) {
+  // Don't render anything if user is null and we're not in timeout mode (will redirect)
+  if (user === null && !authTimeout) {
     return null;
   }
 
   // If there's an auth error, show error message
-  if (userError) {
+  if (userError && !authTimeout) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -78,15 +97,17 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
     );
   }
 
-  // User is authenticated, render the main content
+  // User is authenticated or we're in timeout mode, render the main content
   const isSpotifyConnected = !!(playlists || albums || newReleases);
 
   return (
     <div className="p-6 space-y-8 w-full">
       {/* Debug info */}
-      <div className="text-sm text-gray-400 mb-4">
-        Logged in as: {user.email} (ID: {user.uid})
-      </div>
+      {user && (
+        <div className="text-sm text-gray-400 mb-4">
+          Logged in as: {user.email} (ID: {user.uid})
+        </div>
+      )}
       
       {!isSpotifyConnected ? (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
@@ -99,6 +120,12 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
       ) : (
         <>
           <h1 className="text-3xl font-bold mb-6">Добрый вечер!</h1>
+
+          {/* Now Playing Card */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-4">Сейчас играет</h2>
+            <NowPlayingCard />
+          </div>
 
           <div className="space-y-8">
             {newReleases && newReleases.length > 0 && (
@@ -124,7 +151,16 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
                         )}
                       </div>
                       <h3 className="font-semibold text-white truncate hover:underline">{album.name}</h3>
-                      <p className="text-sm text-neutral-400 truncate">{album.artists.map(a => a.name).join(', ')}</p>
+                      <p className="text-sm text-neutral-400 truncate">
+                        {album.artists.map((artist, index) => (
+                          <React.Fragment key={artist.id}>
+                            <ArtistLink artist={artist} className="text-neutral-400 hover:text-white">
+                              {artist.name}
+                            </ArtistLink>
+                            {index < album.artists.length - 1 && ', '}
+                          </React.Fragment>
+                        ))}
+                      </p>
                       </Link>
                     </div>
                 ))}
@@ -186,7 +222,16 @@ export default function HomePageClient({ playlists, albums, newReleases }: HomeP
                         )}
                       </div>
                       <h3 className="font-semibold text-white truncate hover:underline">{album.name}</h3>
-                      <p className="text-sm text-neutral-400 truncate">{album.artists.map(a => a.name).join(', ')}</p>
+                      <p className="text-sm text-neutral-400 truncate">
+                        {album.artists.map((artist, index) => (
+                          <React.Fragment key={artist.id}>
+                            <ArtistLink artist={artist} className="text-neutral-400 hover:text-white">
+                              {artist.name}
+                            </ArtistLink>
+                            {index < album.artists.length - 1 && ', '}
+                          </React.Fragment>
+                        ))}
+                      </p>
                       </Link>
                     </div>
                     ))}

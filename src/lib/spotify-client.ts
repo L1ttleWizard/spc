@@ -87,3 +87,24 @@ export async function getLibraryDataClient(
     return null;
   }
 } 
+
+/**
+ * Client-side function to preload liked songs in the background
+ * This avoids server/client component conflicts
+ */
+export async function preloadLikedSongsClient(): Promise<void> {
+  try {
+    console.log('🔄 Starting client-side preload of liked songs...');
+    
+    // Use fetch to call the API route instead of importing server-side code
+    const response = await fetch('/api/liked-songs');
+    
+    if (response.ok) {
+      console.log('✅ Client-side preload of liked songs completed successfully');
+    } else {
+      console.log('❌ Client-side preload of liked songs failed');
+    }
+  } catch (error) {
+    console.error('❌ Error in client-side preload:', error);
+  }
+} 

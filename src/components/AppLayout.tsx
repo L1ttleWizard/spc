@@ -10,6 +10,7 @@ interface AppLayoutProps {
   sidebarItems?: LibraryItem[] | null;
   currentSort?: LibrarySortType;
   currentFilter?: LibraryFilterType;
+  showPlayerSidebar?: boolean;
 }
 
 interface SidebarProps {
@@ -22,7 +23,8 @@ export default function AppLayout({
   children, 
   sidebarItems, 
   currentSort, 
-  currentFilter 
+  currentFilter,
+  showPlayerSidebar = false
 }: AppLayoutProps) {
   const [isLoading, setIsLoading] = useState(true);
 
@@ -54,7 +56,9 @@ export default function AppLayout({
         />
         
         {/* Основная область */}
-        <div className="flex-1 flex flex-col overflow-hidden md:ml-72">
+        <div className={`flex-1 flex flex-col overflow-hidden md:ml-72 transition-all duration-300 ${
+          showPlayerSidebar ? 'mr-96' : 'mr-0'
+        }`}>
           {/* Хедер */}
           <Header />
           
